@@ -3,93 +3,128 @@ const { useState, useEffect } = React;
 const RadialMap = window.RadialMap;
 const UserProfile = window.UserProfile;
 const ToolEvaluator = window.ToolEvaluator;
+const LoginScreen = window.LoginScreen;
 const Storage = window.ManifoldStorage;
 const Clustering = window.ManifoldClustering;
+const Auth = window.ManifoldAuth; // Auth Service
 const clusters = window.ManifoldData ? window.ManifoldData.clusters : [];
 
 window.App = function App() {
+    // Auth State
+    const [user, setUser] = useState(null); // Firebase User
+    const [authInitialized, setAuthInitialized] = useState(false);
+    const [showLogin, setShowLogin] = useState(true); // Default to showing login
+
+    // App State
     const [view, setView] = useState('map'); // 'map', 'profile'
     const [selectedClusterId, setSelectedClusterId] = useState(null);
     const [evaluatingTool, setEvaluatingTool] = useState(null);
     const [profileName, setProfileName] = useState("Mi Perfil");
-    const [clusterScores, setClusterScores] = useState({}); // { clusterId: 0-1 }
-    const [refreshTrigger, setRefreshTrigger] = useState(0); // Hack to force refresh after review
+    const [clusterScores, setClusterScores] = useState({});
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    // Initial Load & Auth Check
     useEffect(() => {
+        // Initialize Firebase
+        Auth.init();
+
+        // Listen for auth state changes
+        const unsubscribe = Auth.onAuthStateChanged((u) => {
+            setUser(u);
+            setAuthInitialized(true);
+            if (u) {
+                setShowLogin(false); // Hide login if user found
+                setProfileName(u.displayName || "Usuario");
+            }
+        });
+
+        // Load local profile data anyway
         if (Storage) {
             const p = Storage.getProfile();
-            if (p.sector) setProfileName(p.sector);
+            if (p.sector) setProfileName(p.sector); // Override with local sector if available? Maybe.
 
-            // Calculate Affinity Scores for Heatmap
             const scores = {};
             clusters.forEach(c => {
-                // Using label as sector name for now to match profile
                 scores[c.id] = Clustering.getClusterAffinity(c.label);
             });
             setClusterScores(scores);
         }
-    }, [refreshTrigger, view]); // Re-calc when view changes or after review
 
+        return () => unsubscribe();
+    }, [refreshTrigger, view]);
+
+    // Derived Data Logic
     const selectedCluster = clusters.find(c => c.id === selectedClusterId);
 
-    // Core description when nothing is selected
     const coreDetails = {
         title: "Núcleo Central de IA",
         subtitle: "IAs que conectan múltiples industrias y flujos de trabajo.",
-        description: "Estas herramientas viven en el centro del mapa: Notion AI, Microsoft Copilot, Perplexity, Google Gemini Workspace y ChatGPT. Funcionan como hubs cognitivos que conectan documentación, investigación, comunicación y coordinación entre clusters.",
-        geodesic: "Idea → Borrador en Notion → Investigación con Perplexity → Refinamiento con ChatGPT → Presentación / Reporte vía Copilot.",
+        description: "Estas herramientas viven en el centro del mapa...",
+        geodesic: "Idea → Borrador → Investigación → Refinamiento → Reporte",
         tools: [
-            { id: "notion", name: "Notion AI", description: "Cerebro operativo para documentación." },
-            { id: "copilot", name: "Microsoft Copilot", description: "IA integrada en Office 365." },
-            { id: "perplexity", name: "Perplexity", description: "Investigación con contexto." },
+            { id: "notion", name: "Notion AI", description: "Cerebro operativo." },
+            { id: "copilot", name: "Microsoft Copilot", description: "IA en Office 365." },
+            { id: "perplexity", name: "Perplexity", description: "Investigación contextual." },
             { id: "chatgpt", name: "ChatGPT", description: "Motor de razonamiento." }
         ]
     };
 
-    // Prepare display data with sorted tools
     let displayTools = selectedCluster ? selectedCluster.tools : coreDetails.tools;
-
-    // Sort logic
     if (selectedCluster) {
-        // Use Clustering engine to sort tools by score
-        // We pass the raw tools, the engine enhances them with 'score' and sorts
         displayTools = Clustering.getRecommendedTools(selectedCluster.label, displayTools);
     } else {
-        // Also sort core tools? Maybe later. For now just enhance them.
         displayTools = Clustering.getRecommendedTools("General", displayTools);
     }
 
-    // Build display object
     const displayData = selectedCluster ? {
         title: selectedCluster.label,
         subtitle: "Cluster de herramientas especializadas.",
         description: selectedCluster.description,
         geodesic: selectedCluster.geodesic,
-        tools: displayTools // Sorted tools
+        tools: displayTools
     } : { ...coreDetails, tools: displayTools };
 
 
+    // Handlers
     const handleEvaluate = (tool) => {
         setEvaluatingTool(tool);
     };
 
-    // Triggered when ToolEvaluator closes after saving
     const handleSaveReview = () => {
         setEvaluatingTool(null);
-        setRefreshTrigger(prev => prev + 1); // Cause re-render to update heatmap
+        setRefreshTrigger(prev => prev + 1);
     };
 
     const handleSaveProfile = () => {
         const p = Storage.getProfile();
-        setProfileName(p.sector || "Mi Perfil");
+        setProfileName(p.sector || (user ? user.displayName : "Mi Perfil"));
         setView('map');
     };
+
+    const handleLogout = async () => {
+        await Auth.signOut();
+        setShowLogin(true);
+        setUser(null);
+    };
+
+    // Render Login Screen if needed
+    if (showLogin && !user) {
+        return (
+            <LoginScreen
+                onLoginSuccess={(u) => {
+                    setUser(u);
+                    setShowLogin(false);
+                }}
+                onSkip={() => setShowLogin(false)}
+            />
+        );
+    }
 
     return (
         <div className="flex h-screen bg-[#0b1020] text-gray-100 font-sans overflow-hidden">
 
             {/* -- Navigation -- */}
-            <div className="absolute top-4 right-6 z-50 flex gap-4">
+            <div className="absolute top-4 right-6 z-50 flex gap-4 items-center">
                 {view !== 'map' && (
                     <button
                         onClick={() => setView('map')}
@@ -98,13 +133,32 @@ window.App = function App() {
                         ← Volver al Mapa
                     </button>
                 )}
-                <button
-                    onClick={() => setView('profile')}
-                    className="px-4 py-2 bg-[#9da2ff]/20 hover:bg-[#9da2ff]/30 text-[#9da2ff] border border-[#9da2ff]/50 rounded-full text-sm backdrop-blur-md transition-colors flex items-center gap-2"
-                >
-                    <span className="w-2 h-2 rounded-full bg-green-400"></span>
-                    {profileName}
-                </button>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setView('profile')}
+                        className="px-4 py-2 bg-[#9da2ff]/20 hover:bg-[#9da2ff]/30 text-[#9da2ff] border border-[#9da2ff]/50 rounded-full text-sm backdrop-blur-md transition-colors flex items-center gap-2"
+                    >
+                        {user ? (
+                            <img src={user.photoURL} className="w-5 h-5 rounded-full border border-white/30" />
+                        ) : (
+                            <span className="w-2 h-2 rounded-full bg-green-400"></span>
+                        )}
+                        {profileName}
+                    </button>
+
+                    {user && (
+                        <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-white underline p-2">
+                            Salir
+                        </button>
+                    )}
+
+                    {!user && !showLogin && (
+                        <button onClick={() => setShowLogin(true)} className="text-xs text-[#9da2ff] hover:text-white underline p-2">
+                            Login
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* -- Main Content -- */}
@@ -122,7 +176,7 @@ window.App = function App() {
                                 <RadialMap
                                     onClusterSelect={setSelectedClusterId}
                                     selectedClusterId={selectedClusterId}
-                                    clusterScores={clusterScores} /* NEW PROP PASSING */
+                                    clusterScores={clusterScores}
                                 />
                             ) : <div className="p-10">Cargando Mapa...</div>}
                         </div>
@@ -134,7 +188,7 @@ window.App = function App() {
                             <h1 className="text-lg font-bold uppercase tracking-wider text-[#9da2ff] mb-2">Manifold de IA</h1>
                             <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#9da2ff]/10 border border-[#9da2ff]/30 rounded-full text-xs text-[#c2c6ff]">
                                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                                <span>Modo Exploración</span>
+                                <span>Modo Exploración {user ? "" : "(Invitado)"}</span>
                             </div>
                         </header>
 
@@ -201,7 +255,7 @@ window.App = function App() {
                 <ToolEvaluator
                     toolId={evaluatingTool.id}
                     toolName={evaluatingTool.name}
-                    onClose={handleSaveReview} /* IMPORTANT: Callback to trigger refresh */
+                    onClose={handleSaveReview}
                 />
             )}
         </div>
