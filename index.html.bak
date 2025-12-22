@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manifold Cognitivo de IA por Industrias</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b1020;
+      color: #f5f5f5;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      width: 100%;
+      height: 100%;
+    }
+
+    .canvas-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at top, #1a2440 0%, #050712 70%);
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .sidebar {
+      border-left: 1px solid rgba(255,255,255,0.08);
+      padding: 18px 18px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #050712;
+      overflow-y: auto;
+    }
+
+    .sidebar h1 {
+      font-size: 1.1rem;
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9da2ff;
+    }
+
+    .sidebar h2 {
+      font-size: 1.05rem;
+      margin: 4px 0 0 0;
+    }
+
+    .sidebar h3 {
+      font-size: 0.9rem;
+      margin: 8px 0 4px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9da2ff;
+    }
+
+    .sidebar p {
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin: 2px 0;
+      color: #d4d7ff;
+    }
+
+    .sidebar ul {
+      margin: 4px 0 0 16px;
+      padding: 0;
+      font-size: 0.83rem;
+      line-height: 1.3;
+      color: #e3e5ff;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(157, 162, 255, 0.12);
+      color: #c2c6ff;
+      border: 1px solid rgba(157,162,255,0.3);
+    }
+
+    .pill span {
+      font-size: 0.7rem;
+      opacity: 0.9;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      color: #8e93c2;
+      margin-top: 4px;
+    }
+
+    .footer-note {
+      margin-top: auto;
+      font-size: 0.7rem;
+      color: #6e739b;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(255,255,255,0.08);
+    }
+
+    /* Tooltips */
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      padding: 6px 8px;
+      background: rgba(3, 8, 30, 0.92);
+      color: #f5f5f5;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      border: 1px solid rgba(157,162,255,0.4);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translate(-50%, -130%);
+      transition: opacity 0.12s ease-out;
+      z-index: 10;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: #aeb2ff;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+    }
+
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* Hover effects */
+    .cluster-arc {
+      transition: stroke-width 0.15s ease-out, stroke-opacity 0.15s ease-out, fill-opacity 0.15s ease-out;
+      cursor: pointer;
+    }
+    .cluster-arc.active {
+      stroke-width: 3.5;
+      stroke-opacity: 0.95;
+      fill-opacity: 0.2;
+    }
+    .cluster-arc.dimmed {
+      stroke-opacity: 0.1;
+      fill-opacity: 0.03;
+    }
+
+    .node-circle {
+      transition: r 0.15s ease-out, fill-opacity 0.15s ease-out, stroke-width 0.15s ease-out;
+      cursor: pointer;
+    }
+    .node-circle.cluster-node.active {
+      r: 7;
+      stroke-width: 2;
+    }
+    .node-circle.dimmed {
+      fill-opacity: 0.25;
+      stroke-opacity: 0.2;
+    }
+
+    .node-circle.core-node {
+      cursor: default;
+    }
+
+    .link-line {
+      transition: stroke-opacity 0.15s ease-out, stroke-width 0.15s ease-out;
+    }
+    .link-line.dimmed {
+      stroke-opacity: 0.08;
+    }
+
+    details.inventory-group {
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 4px 8px;
+      margin-bottom: 4px;
+      background: rgba(255,255,255,0.01);
+    }
+
+    details.inventory-group summary {
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: #c5c9ff;
+      list-style: none;
+    }
+
+    details.inventory-group summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .inventory-count {
+      font-size: 0.7rem;
+      color: #8e93c2;
+      margin-left: 6px;
+    }
+
+    .inventory-list ul {
+      margin: 4px 0 4px 16px;
+      padding: 0;
+      font-size: 0.78rem;
+    }
+
+    .inventory-list li span.desc {
+      color: #9ca0d8;
+      font-size: 0.74rem;
+    }
+
+    .form-inline {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .form-inline label {
+      font-size: 0.72rem;
+      color: #aeb2ff;
+    }
+
+    .form-inline input,
+    .form-inline select,
+    .form-inline textarea {
+      width: 100%;
+      font-size: 0.78rem;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: #050816;
+      color: #f5f5ff;
+      resize: vertical;
+    }
+
+    .btn-add {
+      margin-top: 4px;
+      align-self: flex-start;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      border-radius: 999px;
+      border: 1px solid rgba(157,162,255,0.7);
+      background: rgba(157,162,255,0.16);
+      color: #e5e7ff;
+      cursor: pointer;
+    }
+
+    .btn-add:hover {
+      background: rgba(157,162,255,0.28);
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 55% 45%;
+      }
+      .sidebar {
+        border-left: none;
+        border-top: 1px solid rgba(255,255,255,0.08);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="tooltip" id="tooltip"></div>
+  <div class="app">
+    <div class="canvas-container">
+      <svg id="radialSvg"></svg>
+    </div>
+    <div class="sidebar">
+      <h1>Manifold de IA por industrias</h1>
+      <div class="pill">
+        <strong>Modo:</strong><span>Exploración radial + Inventario</span>
+      </div>
+      <p class="hint">
+        Haz clic en un <strong>sector</strong> o en un <strong>nodo</strong> para ver detalles.  
+        Clic en el fondo del gráfico para volver al núcleo.
+      </p>
+
+      <div class="legend" id="legend"></div>
+
+      <h2 id="detail-title">Núcleo central de IA</h2>
+      <p id="detail-subtitle">IAs que conectan múltiples industrias y flujos de trabajo.</p>
+
+      <h3>Descripción</h3>
+      <p id="detail-description">
+        Estas herramientas viven en el centro del mapa: Notion AI, Microsoft Copilot, Perplexity, Google Gemini Workspace y ChatGPT.
+        Funcionan como hubs cognitivos que conectan documentación, investigación, comunicación y coordinación entre clusters.
+      </p>
+
+      <h3>Herramientas clave</h3>
+      <ul id="detail-tools">
+        <li><strong>Notion AI</strong> — cerebro operativo para documentación, proyectos y sistemas.</li>
+        <li><strong>Microsoft Copilot</strong> — IA integrada en Outlook, Word, Excel, PowerPoint y Teams.</li>
+        <li><strong>Perplexity</strong> — investigación con contexto y citas, transversal a todos los clusters.</li>
+        <li><strong>Google Gemini Workspace</strong> — IA dentro de Docs, Sheets, Gmail y Meet.</li>
+        <li><strong>ChatGPT</strong> — motor de reasoning y diseño de flujos.</li>
+      </ul>
+
+      <h3>Geodésica típica</h3>
+      <p id="detail-geodesic">
+        Idea → Borrador en Notion → Investigación con Perplexity → Refinamiento con ChatGPT → Presentación / Reporte vía Copilot.
+      </p>
+
+      <h3>Inventario de IAs</h3>
+      <div id="inventory-list" class="inventory-list"></div>
+
+      <h3>Agregar IA al manifold</h3>
+      <div class="form-inline">
+        <label for="new-tool-name">Nombre de la IA</label>
+        <input id="new-tool-name" type="text" placeholder="Ej. Cursor, Jasper, etc." />
+
+        <label for="new-tool-cluster">Cluster / sector</label>
+        <select id="new-tool-cluster"></select>
+
+        <label for="new-tool-desc">Descripción (opcional)</label>
+        <textarea id="new-tool-desc" rows="2" placeholder="¿Qué hace y por qué pertenece aquí?"></textarea>
+
+        <button class="btn-add" id="btn-add-tool">Añadir IA</button>
+      </div>
+
+      <div class="footer-note">
+        Consejo: usa el inventario para construir tu propia ontología de herramientas por industria.  
+        Lo que agregues aquí no se guarda en servidor todavía, pero sí te sirve como simulador de clasificación.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- DATA ------------------------------------------------------
+    const clusters = [
+      {
+        id: "education",
+        label: "Educación & LMS/SIS",
+        color: "#5b8def",
+        description:
+          "Herramientas de IA que se integran a universidades, LMS, SIS y entornos de aprendizaje.",
+        geodesic:
+          "Contenido → Competencias → Actividades → Evaluación → Mejora continua.",
+        tools: [
+          { name: "Notion AI", description: "Syllabus, documentación y plantillas de curso." },
+          { name: "Cengage MindTap AI", description: "Alineación de actividades con competencias." },
+          { name: "Eduaide / Class Companion", description: "Generación de actividades dentro del LMS." },
+          { name: "Gradescope AI", description: "Calificación asistida y feedback masivo." },
+          { name: "Microsoft Learning Accelerators", description: "Apoyo en tiempo real a estudiantes." }
+        ]
+      },
+      {
+        id: "productivity",
+        label: "Productividad & Knowledge Work",
+        color: "#8f5bff",
+        description:
+          "IAs que viven en suites de oficina, gestores de tareas y herramientas de conocimiento.",
+        geodesic:
+          "Notas → Acciones → Reuniones → Documentos → Decisiones.",
+        tools: [
+          { name: "Microsoft Copilot", description: "IA en Outlook, Word, Excel, PowerPoint y Teams." },
+          { name: "Google Gemini Workspace", description: "IA en Docs, Sheets, Gmail y Meet." },
+          { name: "Asana Intelligence", description: "Estructura proyectos y detecta bloqueos." },
+          { name: "Monday AI", description: "Automation y asistencia en tableros de trabajo." },
+          { name: "Perplexity Enterprise", description: "Investigación aplicada a informes." },
+          { name: "Notion AI", description: "Repositorio vivo de procesos y decisiones." }
+        ]
+      },
+      {
+        id: "sales",
+        label: "Ventas, Marketing & Real Estate",
+        color: "#ff7f50",
+        description:
+          "IAs insertadas en CRMs, embudos de marketing y herramientas específicas para Real Estate.",
+        geodesic:
+          "Lead → Clasificación → Nurture → Cita → Cierre.",
+        tools: [
+          { name: "GoHighLevel AI", description: "Flujos de nurturing y respuestas instantáneas." },
+          { name: "HubSpot AI Assist", description: "Emails, secuencias y resumen de deals." },
+          { name: "Zoho Zia", description: "Análisis y predicciones dentro del CRM." },
+          { name: "ReChat / LocalizeOS", description: "IA para agentes inmobiliarios (listings, comps)." },
+          { name: "Fathom AI", description: "Convierte llamadas en tareas concretas." }
+        ]
+      },
+      {
+        id: "finance",
+        label: "Finanzas, Contabilidad & Auditoría",
+        color: "#ffc857",
+        description:
+          "IAs que se integran en hojas de cálculo, ERPs, contabilidad y tesorería.",
+        geodesic:
+          "Transacción → Clasificación → Insight → Reconciliación → Decisión.",
+        tools: [
+          { name: "Excel Copilot", description: "Análisis, fórmulas y reporting asistido." },
+          { name: "Power BI Copilot", description: "Ayuda con DAX y narrativas de datos." },
+          { name: "QuickBooks AI", description: "Clasificación y reconciliación de movimientos." },
+          { name: "Ramp IQ / Brex AI", description: "Detección de gastos anómalos." },
+          { name: "Glean AI", description: "Optimización de cuentas por pagar/cobrar." },
+          { name: "Plaid Signal AI", description: "Evaluación de riesgo de pago." }
+        ]
+      },
+      {
+        id: "health",
+        label: "Salud, Clínicas & Bienestar",
+        color: "#5bd1b2",
+        description:
+          "IAs que operan sobre datos fisiológicos, historia clínica y flujos clínicos.",
+        geodesic:
+          "Dato fisiológico → Estado → Alerta → Intervención.",
+        tools: [
+          { name: "Welltory", description: "Interpretación de HRV, estrés y energía." },
+          { name: "Integración Apple Watch", description: "Captura de datos biométricos." },
+          { name: "Nabla / DeepScribe / Augmedix", description: "Notas clínicas desde voz." },
+          { name: "Overjet", description: "Análisis de radiografías dentales." },
+          { name: "Hippocratic AI", description: "Monitoreo y banderas rojas clínicas." }
+        ]
+      },
+      {
+        id: "research",
+        label: "Investigación & Ciencia",
+        color: "#c77dff",
+        description:
+          "IAs que aceleran revisión de literatura, modelado, experimentación y síntesis científica.",
+        geodesic:
+          "Pregunta → Papers → Extracción de variables → Síntesis → Modelo.",
+        tools: [
+          { name: "Perplexity Pro", description: "Preguntas complejas con citas confiables." },
+          { name: "Elicit", description: "Revisiones sistemáticas y extracción de datos." },
+          { name: "Wolfram + LLM", description: "Cómputo simbólico y numérico avanzado." },
+          { name: "Scite AI", description: "Contexto de citas: apoyo o contradicción." }
+        ]
+      },
+      {
+        id: "engineering",
+        label: "Ingeniería, DevOps & Desarrollo",
+        color: "#ff6b9c",
+        description:
+          "IAs integradas en IDEs, plataformas cloud y herramientas de observabilidad.",
+        geodesic:
+          "Error → Diagnóstico → Fix → Deploy → Monitorización.",
+        tools: [
+          { name: "GitHub Copilot Enterprise", description: "Asistencia en el IDE y PRs." },
+          { name: "JetBrains AI Assistant", description: "Ayuda en entornos JetBrains." },
+          { name: "AWS Q", description: "Consultoría de infra y scripts en AWS." },
+          { name: "GCP Gemini for Cloud", description: "Asistencia en GCP." },
+          { name: "Datadog Bits AI", description: "Análisis de logs y anomalías." },
+          { name: "Figma DevMode + IA", description: "De diseño a especificación técnica." }
+        ]
+      },
+      {
+        id: "creative",
+        label: "Diseño, Medios & Contenido",
+        color: "#4fb3ff",
+        description:
+          "IAs insertadas en herramientas de diseño, edición y producción de contenido.",
+        geodesic:
+          "Idea → Prototipo → Producción → Publicación.",
+        tools: [
+          { name: "Figma AI", description: "Wireframes, variaciones y diseño asistido." },
+          { name: "Adobe Firefly / GenStudio", description: "Imagen y video generativo." },
+          { name: "Runway ML", description: "Video generativo y efectos avanzados." },
+          { name: "Descript AI", description: "Edición de audio y video basada en texto." },
+          { name: "CapCut IA", description: "Edición rápida para redes sociales." },
+          { name: "OpusClip", description: "Clips cortos desde videos largos." }
+        ]
+      }
+    ];
+
+    const coreNodes = [
+      { id: "notion", label: "Notion AI" },
+      { id: "copilot", label: "MS Copilot" },
+      { id: "perplexity", label: "Perplexity" },
+      { id: "gemini", label: "Gemini Workspace" },
+      { id: "chatgpt", label: "ChatGPT" }
+    ];
+
+    // --- DOM refs --------------------------------------------------
+    const svg = document.getElementById("radialSvg");
+    const tooltip = document.getElementById("tooltip");
+    const detailTitle = document.getElementById("detail-title");
+    const detailSubtitle = document.getElementById("detail-subtitle");
+    const detailDesc = document.getElementById("detail-description");
+    const detailTools = document.getElementById("detail-tools");
+    const detailGeodesic = document.getElementById("detail-geodesic");
+    const legend = document.getElementById("legend");
+    const inventoryList = document.getElementById("inventory-list");
+    const toolNameInput = document.getElementById("new-tool-name");
+    const toolClusterSelect = document.getElementById("new-tool-cluster");
+    const toolDescInput = document.getElementById("new-tool-desc");
+    const btnAddTool = document.getElementById("btn-add-tool");
+
+    let width, height, cx, cy, baseRadius;
+
+    function resize() {
+      width = svg.clientWidth || svg.parentElement.clientWidth;
+      height = svg.clientHeight || svg.parentElement.clientHeight;
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      cx = width / 2;
+      cy = height / 2;
+      baseRadius = Math.min(width, height) * 0.25;
+    }
+
+    window.addEventListener("resize", () => {
+      resize();
+      draw();
+    });
+
+    let currentClusterId = null;
+
+    function clearSvg() {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+    }
+
+    function pol2cart(r, angleRad) {
+      return {
+        x: cx + r * Math.cos(angleRad),
+        y: cy + r * Math.sin(angleRad)
+      };
+    }
+
+    function draw() {
+      clearSvg();
+      resize();
+
+      // Background subtle rings
+      const rings = [baseRadius * 0.6, baseRadius, baseRadius * 1.3];
+      rings.forEach(r => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", cx);
+        circle.setAttribute("cy", cy);
+        circle.setAttribute("r", r);
+        circle.setAttribute("fill", "none");
+        circle.setAttribute("stroke", "rgba(255,255,255,0.06)");
+        circle.setAttribute("stroke-dasharray", "2 6");
+        svg.appendChild(circle);
+      });
+
+      const linkGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      linkGroup.setAttribute("class", "links");
+      svg.appendChild(linkGroup);
+
+      const arcsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      arcsGroup.setAttribute("class", "arcs");
+      svg.appendChild(arcsGroup);
+
+      const nodesGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      nodesGroup.setAttribute("class", "nodes");
+      svg.appendChild(nodesGroup);
+
+      const labelsGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      labelsGroup.setAttribute("class", "labels");
+      svg.appendChild(labelsGroup);
+
+      // Core nodes
+      const coreRadius = baseRadius * 0.4;
+      const coreAngleStep = (Math.PI * 2) / coreNodes.length;
+      const corePositions = {};
+      coreNodes.forEach((node, i) => {
+        const a = i * coreAngleStep - Math.PI / 2;
+        const { x, y } = pol2cart(coreRadius, a);
+        corePositions[node.id] = { x, y };
+
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", x);
+        c.setAttribute("cy", y);
+        c.setAttribute("r", 6);
+        c.setAttribute("fill", "#ffffff");
+        c.setAttribute("fill-opacity", "0.9");
+        c.setAttribute("stroke", "rgba(157,162,255,0.9)");
+        c.setAttribute("stroke-width", "1.6");
+        c.setAttribute("class", "node-circle core-node");
+        nodesGroup.appendChild(c);
+
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.textContent = node.label;
+        label.setAttribute("x", x + 8);
+        label.setAttribute("y", y + 4);
+        label.setAttribute("fill", "#d7dbff");
+        label.setAttribute("font-size", "10");
+        label.setAttribute("font-family", "system-ui, sans-serif");
+        labelsGroup.appendChild(label);
+      });
+
+      const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      halo.setAttribute("cx", cx);
+      halo.setAttribute("cy", cy);
+      halo.setAttribute("r", coreRadius * 0.55);
+      halo.setAttribute("fill", "none");
+      halo.setAttribute("stroke", "rgba(157,162,255,0.35)");
+      halo.setAttribute("stroke-width", "1.5");
+      halo.setAttribute("stroke-dasharray", "1 5");
+      svg.appendChild(halo);
+
+      const centerText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      centerText.textContent = "Núcleo de IA transversal";
+      centerText.setAttribute("x", cx);
+      centerText.setAttribute("y", cy + coreRadius * 0.7);
+      centerText.setAttribute("fill", "#9da2ff");
+      centerText.setAttribute("font-size", "11");
+      centerText.setAttribute("font-family", "system-ui, sans-serif");
+      centerText.setAttribute("text-anchor", "middle");
+      svg.appendChild(centerText);
+
+      const angleStep = (Math.PI * 2) / clusters.length;
+      const clusterNodes = [];
+
+      clusters.forEach((cluster, i) => {
+        const startAngle = i * angleStep - Math.PI / 2;
+        const endAngle = startAngle + angleStep * 0.9;
+        const midAngle = (startAngle + endAngle) / 2;
+
+        const arcInner = baseRadius * 0.9;
+        const arcOuter = baseRadius * 1.35;
+
+        const p1 = pol2cart(arcInner, startAngle);
+        const p2 = pol2cart(arcInner, endAngle);
+        const p3 = pol2cart(arcOuter, endAngle);
+        const p4 = pol2cart(arcOuter, startAngle);
+
+        const largeArcFlag = endAngle - startAngle <= Math.PI ? "0" : "1";
+
+        const d = [
+          "M", p1.x, p1.y,
+          "A", arcInner, arcInner, 0, largeArcFlag, 1, p2.x, p2.y,
+          "L", p3.x, p3.y,
+          "A", arcOuter, arcOuter, 0, largeArcFlag, 0, p4.x, p4.y,
+          "Z"
+        ].join(" ");
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", cluster.color);
+        path.setAttribute("fill-opacity", "0.08");
+        path.setAttribute("stroke", cluster.color);
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("stroke-opacity", "0.6");
+        path.setAttribute("class", "cluster-arc");
+        path.dataset.clusterId = cluster.id;
+
+        arcsGroup.appendChild(path);
+
+        const clusterNodeR = (arcInner + arcOuter) / 2;
+        const clusterPos = pol2cart(clusterNodeR, midAngle);
+
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", clusterPos.x);
+        c.setAttribute("cy", clusterPos.y);
+        c.setAttribute("r", 5);
+        c.setAttribute("fill", cluster.color);
+        c.setAttribute("fill-opacity", "0.9");
+        c.setAttribute("stroke", "#02030a");
+        c.setAttribute("stroke-width", "1");
+        c.setAttribute("class", "node-circle cluster-node");
+        c.dataset.clusterId = cluster.id;
+        nodesGroup.appendChild(c);
+
+        clusterNodes.push({ cluster, x: clusterPos.x, y: clusterPos.y, angle: midAngle });
+
+        const labelPos = pol2cart(arcOuter + 16, midAngle);
+        const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        lbl.textContent = cluster.label;
+        lbl.setAttribute("x", labelPos.x);
+        lbl.setAttribute("y", labelPos.y);
+        lbl.setAttribute("fill", "#f1f3ff");
+        lbl.setAttribute("font-size", "10");
+        lbl.setAttribute("font-family", "system-ui, sans-serif");
+        lbl.setAttribute("text-anchor", labelPos.x >= cx ? "start" : "end");
+        labelsGroup.appendChild(lbl);
+      });
+
+      const linkElems = [];
+      clusterNodes.forEach((cn, idx) => {
+        const core = coreNodes[idx % coreNodes.length];
+        const cp = corePositions[core.id];
+        const link = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        link.setAttribute("x1", cp.x);
+        link.setAttribute("y1", cp.y);
+        link.setAttribute("x2", cn.x);
+        link.setAttribute("y2", cn.y);
+        link.setAttribute("stroke", "rgba(200, 205, 255, 0.28)");
+        link.setAttribute("stroke-width", "1.1");
+        link.setAttribute("class", "link-line");
+        link.dataset.clusterId = cn.cluster.id;
+        linkGroup.appendChild(link);
+        linkElems.push(link);
+      });
+
+      const allArcs = Array.from(svg.querySelectorAll(".cluster-arc"));
+      const allNodes = Array.from(svg.querySelectorAll(".node-circle.cluster-node"));
+      const allLinks = linkElems;
+
+      function setActiveCluster(clusterId) {
+        currentClusterId = clusterId || null;
+
+        allArcs.forEach(a => {
+          const cid = a.dataset.clusterId;
+          a.classList.toggle("active", cid === clusterId);
+          a.classList.toggle("dimmed", clusterId && cid !== clusterId);
+        });
+
+        allNodes.forEach(n => {
+          const cid = n.dataset.clusterId;
+          n.classList.toggle("active", cid === clusterId);
+          n.classList.toggle("dimmed", clusterId && cid !== clusterId);
+        });
+
+        allLinks.forEach(l => {
+          const cid = l.dataset.clusterId;
+          l.classList.toggle("dimmed", clusterId && cid !== clusterId);
+        });
+
+        if (!clusterId) {
+          showCoreDetails();
+        } else {
+          const cluster = clusters.find(c => c.id === clusterId);
+          if (cluster) showClusterDetails(cluster);
+        }
+      }
+
+      function showCoreDetails() {
+        detailTitle.textContent = "Núcleo central de IA";
+        detailSubtitle.textContent = "IAs que conectan múltiples industrias y flujos de trabajo.";
+        detailDesc.textContent =
+          "El núcleo integra herramientas como Notion AI, Microsoft Copilot, Perplexity, Google Gemini Workspace y ChatGPT. " +
+          "Son los hubs cognitivos que unen documentación, investigación, comunicación y coordinación entre los distintos radios del mapa.";
+        detailGeodesic.textContent =
+          "Idea → Borrador en Notion → Investigación con Perplexity → Refinamiento con ChatGPT → Presentación / Reporte vía Copilot.";
+
+        detailTools.innerHTML = "";
+        [
+          "Notion AI — cerebro operativo para documentación, sistemas y proyectos.",
+          "Microsoft Copilot — IA omnipresente en Outlook, Word, Excel, PowerPoint y Teams.",
+          "Perplexity — investigación con contexto y citas verificables.",
+          "Google Gemini Workspace — IA embebida en Docs, Sheets, Gmail y Meet.",
+          "ChatGPT — motor de reasoning y de diseño de flujos de trabajo (como este mapa)."
+        ].forEach(t => {
+          const li = document.createElement("li");
+          li.innerHTML = t;
+          detailTools.appendChild(li);
+        });
+      }
+
+      function showClusterDetails(cluster) {
+        detailTitle.textContent = cluster.label;
+        detailSubtitle.textContent = "Cluster industrial dentro del manifold cognitivo de IA.";
+        detailDesc.textContent = cluster.description;
+        detailGeodesic.textContent = cluster.geodesic;
+
+        detailTools.innerHTML = "";
+        cluster.tools.forEach(t => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${t.name}</strong>${t.description ? " — " + t.description : ""}`;
+          detailTools.appendChild(li);
+        });
+      }
+
+      function attachHit(area, clusterId, label) {
+        area.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          setActiveCluster(clusterId);
+        });
+
+        area.addEventListener("mousemove", (ev) => {
+          tooltip.textContent = label;
+          tooltip.style.left = ev.clientX + "px";
+          tooltip.style.top = ev.clientY + "px";
+          tooltip.style.opacity = "1";
+        });
+
+        area.addEventListener("mouseleave", () => {
+          tooltip.style.opacity = "0";
+        });
+      }
+
+      allArcs.forEach(arc => {
+        const cid = arc.dataset.clusterId;
+        const cl = clusters.find(c => c.id === cid);
+        attachHit(arc, cid, cl ? cl.label : cid);
+      });
+
+      allNodes.forEach(node => {
+        const cid = node.dataset.clusterId;
+        const cl = clusters.find(c => c.id === cid);
+        attachHit(node, cid, cl ? cl.label : cid);
+      });
+
+      svg.addEventListener("click", () => {
+        setActiveCluster(null);
+        tooltip.style.opacity = "0";
+      });
+
+      showCoreDetails();
+      buildLegend();
+      buildInventoryList();
+      populateClusterSelect();
+    }
+
+    function buildLegend() {
+      legend.innerHTML = "";
+      clusters.forEach(cluster => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        const sw = document.createElement("span");
+        sw.className = "legend-swatch";
+        sw.style.background = cluster.color;
+        item.appendChild(sw);
+        const txt = document.createElement("span");
+        txt.textContent = cluster.label;
+        item.appendChild(txt);
+        item.addEventListener("click", () => {
+          setActiveFromLegend(cluster.id);
+        });
+        legend.appendChild(item);
+      });
+    }
+
+    function buildInventoryList() {
+      inventoryList.innerHTML = "";
+      clusters.forEach(cluster => {
+        const group = document.createElement("details");
+        group.className = "inventory-group";
+        group.open = false;
+
+        const summary = document.createElement("summary");
+        summary.textContent = cluster.label;
+        const count = document.createElement("span");
+        count.className = "inventory-count";
+        count.textContent = `(${cluster.tools.length} IAs)`;
+        summary.appendChild(count);
+        group.appendChild(summary);
+
+        const ul = document.createElement("ul");
+        cluster.tools.forEach(t => {
+          const li = document.createElement("li");
+          const nameSpan = document.createElement("span");
+          nameSpan.textContent = t.name;
+          li.appendChild(nameSpan);
+          if (t.description) {
+            const descSpan = document.createElement("span");
+            descSpan.className = "desc";
+            descSpan.textContent = " — " + t.description;
+            li.appendChild(descSpan);
+          }
+          ul.appendChild(li);
+        });
+
+        group.appendChild(ul);
+        inventoryList.appendChild(group);
+      });
+    }
+
+    function populateClusterSelect() {
+      toolClusterSelect.innerHTML = "";
+      clusters.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.label;
+        toolClusterSelect.appendChild(opt);
+      });
+    }
+
+    function setActiveFromLegend(clusterId) {
+      const arcs = svg.querySelectorAll(".cluster-arc");
+      const nodes = svg.querySelectorAll(".node-circle.cluster-node");
+      const links = svg.querySelectorAll(".link-line");
+
+      currentClusterId = clusterId;
+
+      arcs.forEach(a => {
+        const cid = a.dataset.clusterId;
+        a.classList.toggle("active", cid === clusterId);
+        a.classList.toggle("dimmed", cid !== clusterId);
+      });
+
+      nodes.forEach(n => {
+        const cid = n.dataset.clusterId;
+        n.classList.toggle("active", cid === clusterId);
+        n.classList.toggle("dimmed", cid !== clusterId);
+      });
+
+      links.forEach(l => {
+        const cid = l.dataset.clusterId;
+        l.classList.toggle("dimmed", cid !== clusterId);
+      });
+
+      const cl = clusters.find(c => c.id === clusterId);
+      if (cl) {
+        detailTitle.textContent = cl.label;
+        detailSubtitle.textContent = "Cluster industrial dentro del manifold cognitivo de IA.";
+        detailDesc.textContent = cl.description;
+        detailGeodesic.textContent = cl.geodesic;
+        detailTools.innerHTML = "";
+        cl.tools.forEach(t => {
+          const li = document.createElement("li");
+          li.innerHTML = `<strong>${t.name}</strong>${t.description ? " — " + t.description : ""}`;
+          detailTools.appendChild(li);
+        });
+      }
+    }
+
+    // Añadir IA desde el formulario
+    btnAddTool.addEventListener("click", (e) => {
+      e.preventDefault();
+      const name = (toolNameInput.value || "").trim();
+      const clusterId = toolClusterSelect.value;
+      const desc = (toolDescInput.value || "").trim();
+
+      if (!name) {
+        alert("Escribe al menos el nombre de la IA.");
+        return;
+      }
+      const cluster = clusters.find(c => c.id === clusterId);
+      if (!cluster) return;
+
+      cluster.tools.push({ name, description: desc || null });
+
+      // refrescar inventario y detalle
+      buildInventoryList();
+      setActiveFromLegend(clusterId);
+
+      // limpiar campos
+      toolNameInput.value = "";
+      toolDescInput.value = "";
+    });
+
+    // init
+    resize();
+    draw();
+  </script>
+</body>
+</html>
