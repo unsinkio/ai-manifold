@@ -19,13 +19,28 @@ window.UserProfile = function UserProfile({ onSave }) {
         setProfile(prev => ({ ...prev, [field]: val }));
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const tasksArray = profile.tasks.split(',').map(t => t.trim()).filter(Boolean);
-        Storage.saveProfile({
+        const profileData = {
             sector: profile.sector,
             jobDescription: profile.jobDescription,
             tasks: tasksArray
-        });
+        };
+
+        // 1. Save Local (Always copy to local cache)
+        Storage.saveProfile(profileData);
+
+        // 2. Save Cloud (If logged in)
+        const user = window.ManifoldAuth && window.ManifoldAuth.user;
+        if (user && window.ManifoldDB) {
+            try {
+                await window.ManifoldDB.saveUserProfile(user.uid, profileData);
+                console.log("Profile updated in cloud");
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
         if (onSave) onSave();
     };
 

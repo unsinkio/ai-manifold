@@ -4,7 +4,8 @@ const RadialMap = window.RadialMap;
 const UserProfile = window.UserProfile;
 const ToolEvaluator = window.ToolEvaluator;
 const LoginScreen = window.LoginScreen;
-const Storage = window.ManifoldStorage;
+const LocalStorage = window.ManifoldStorage; // Renamed to avoid confusion
+const DB = window.ManifoldDB; // Cloud DB
 const Clustering = window.ManifoldClustering;
 const Auth = window.ManifoldAuth; // Auth Service
 const clusters = window.ManifoldData ? window.ManifoldData.clusters : [];
@@ -25,22 +26,67 @@ window.App = function App() {
 
     // Initial Load & Auth Check
     useEffect(() => {
-        // Initialize Firebase
+        // Init Services
         Auth.init();
+        DB.init();
 
-        // Listen for auth state changes
-        const unsubscribe = Auth.onAuthStateChanged((u) => {
+        // Listen for auth state
+        const unsubscribe = Auth.onAuthStateChanged(async (u) => {
             setUser(u);
             setAuthInitialized(true);
+
             if (u) {
-                setShowLogin(false); // Hide login if user found
+                setShowLogin(false);
                 setProfileName(u.displayName || "Usuario");
+
+                // --- MIGRATION LOGIC START ---
+                // Check if we have local data to migrate
+                const localProfile = LocalStorage.getProfile();
+                const localReviews = LocalStorage.getDB().reviews;
+                const hasLocalData = (localProfile.sector && localProfile.sector !== "") || localReviews.length > 0;
+
+                // Only migrate if we haven't flagged it as done (simple check: local storage key)
+                const isMigrated = localStorage.getItem('manifold_migrated_to_cloud');
+
+                if (hasLocalData && !isMigrated) {
+                    console.log("Migrating local data to cloud...");
+                    try {
+                        await DB.migrateLocalData(u.uid, {
+                            userProfile: localProfile,
+                            reviews: localReviews
+                        });
+                        localStorage.setItem('manifold_migrated_to_cloud', 'true');
+                        // Optional: Clear local DB? LocalStorage.initDB();
+                        alert("¡Tus datos locales se han sincronizado con la nube!");
+                    } catch (e) {
+                        console.error("Migration failed", e);
+                    }
+                }
+
+                // Load Cloud Data to State (Hybrid Approach for now)
+                // ideally we should fetch from DB and populate Clustering engine
+                // For this MVP, we might still rely on LocalStorage for "fast" reads 
+                // OR we need to update clustering.js to accept data injection.
+                // Let's reload profile name from Cloud to be sure.
+                const cloudProfile = await DB.getUserProfile(u.uid);
+                if (cloudProfile && cloudProfile.sector) {
+                    setProfileName(cloudProfile.sector);
+                }
+
+                // Update Clustering Engine with Cloud Data?
+                // Currently Clustering.js reads directly from LocalStorage.
+                // This is a legacy debt. FIX: We'll inject cloud reviews into Clustering logic later.
+                // For this step, let's assume Migration pushed data to Cloud, 
+                // and we will KEEP LocalStorage as the "Client Cache" for now to avoid rewriting Clustering.js entirely in this step.
+                // So: User Auth -> Sync Local -> Cloud.
+                // Future read: Cloud -> Local -> UI.
+                // --- MIGRATION LOGIC END ---
             }
         });
 
-        // Load local profile data anyway
-        if (Storage) {
-            const p = Storage.getProfile();
+        // Load local profile data (Fallback / Cache)
+        if (LocalStorage) {
+            const p = LocalStorage.getProfile();
             if (p.sector) setProfileName(p.sector); // Override with local sector if available? Maybe.
 
             const scores = {};

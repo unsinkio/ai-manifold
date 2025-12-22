@@ -63,7 +63,10 @@ window.ManifoldAuth = {
     // Subscriber
     onAuthStateChanged: function (callback) {
         if (!this.auth) return () => { };
-        return this.auth.onAuthStateChanged(callback);
+        return this.auth.onAuthStateChanged((user) => {
+            this.user = user; // Sync internal state
+            callback(user);
+        });
     }
 };
 

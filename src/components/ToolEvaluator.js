@@ -28,11 +28,27 @@ window.ToolEvaluator = function ToolEvaluator({ toolId, toolName, onClose }) {
         return Math.round(avg * 20); // 0-100 scale
     };
 
-    const handleSave = () => {
-        Storage.saveReview({
+    const handleSave = async () => {
+        const reviewData = {
             toolId,
-            ratings
-        });
+            ratings,
+            fitScore: calculateFitScore() // Ensure score is part of object
+        };
+
+        // 1. Save Local
+        Storage.saveReview(reviewData);
+
+        // 2. Save Cloud
+        const user = window.ManifoldAuth && window.ManifoldAuth.user;
+        if (user && window.ManifoldDB) {
+            try {
+                await window.ManifoldDB.saveReview(user.uid, reviewData);
+                console.log("Review updated in cloud");
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
         alert(`Evaluación guardada para ${toolName}. Fit Score: ${calculateFitScore()}%`);
         if (onClose) onClose();
     };
