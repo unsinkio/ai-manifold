@@ -127,10 +127,17 @@ window.App = function App() {
 
                 // FETCH CUSTOM TOOLS
                 try {
+                    // Sync Reviews First
+                    const cloudReviews = await DB.getUserReviews(u.uid);
+                    if (cloudReviews && cloudReviews.length > 0) {
+                        LocalStorage.syncReviews(cloudReviews);
+                        setRefreshTrigger(prev => prev + 1);
+                    }
+
                     const myTools = await DB.getCustomTools(u.uid);
                     setCustomTools(myTools);
                 } catch (e) {
-                    console.error("Failed to load custom tools", e);
+                    console.error("Failed to load user data", e);
                 }
             }
         });
