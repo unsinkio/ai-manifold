@@ -9,7 +9,7 @@ const LocalStorage = window.ManifoldStorage; // Renamed to avoid confusion
 const DB = window.ManifoldDB; // Cloud DB
 const Clustering = window.ManifoldClustering;
 const Auth = window.ManifoldAuth; // Auth Service
-const clusters = window.ManifoldData ? window.ManifoldData.clusters : [];
+const clustersMock = window.ManifoldData ? window.ManifoldData.clusters : [];
 
 window.App = function App() {
     // Auth State
@@ -18,6 +18,8 @@ window.App = function App() {
     const [showLogin, setShowLogin] = useState(true);
 
     // App State
+    // Initialize with LOCAL data for instant load (Offline First)
+    const [clusters, setClusters] = useState(clustersMock);
     const [view, setView] = useState('map');
     const [selectedClusterId, setSelectedClusterId] = useState(null);
     const [evaluatingTool, setEvaluatingTool] = useState(null);
@@ -26,12 +28,21 @@ window.App = function App() {
     const [profileName, setProfileName] = useState("Mi Perfil");
     const [clusterScores, setClusterScores] = useState({});
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [coreTools, setCoreTools] = useState([]); // Dynamic Core Nodes
 
     // Initial Load & Auth Check
     useEffect(() => {
         // Init Services
         Auth.init();
         DB.init();
+
+        // Hybrid Load: Fetch Cloud Ontology 
+        DB.getOntology().then(cloudData => {
+            if (cloudData && cloudData.length > 0) {
+                console.log("Loaded ontology from cloud");
+                setClusters(cloudData);
+            }
+        });
 
         // Listen for auth state
         const unsubscribe = Auth.onAuthStateChanged(async (u) => {
@@ -109,6 +120,54 @@ window.App = function App() {
 
         return () => unsubscribe();
     }, [refreshTrigger, view]);
+
+    // --- CORE TOOLS LOGIC ---
+    useEffect(() => {
+        if (LocalStorage) {
+            const db = LocalStorage.getDB();
+            const reviews = db.reviews || [];
+
+            // Sort by score desc
+            const sorted = [...reviews].sort((a, b) => b.fitScore - a.fitScore);
+            // Take top 5 with score >= 80%
+            const topReviews = sorted.filter(r => r.fitScore >= 80).slice(0, 5);
+
+            if (topReviews.length > 0) {
+                // Resolve tool details
+                const allToolsFlat = clusters.flatMap(c => c.tools).concat(customTools);
+
+                const resolvedTools = topReviews.map(r => {
+                    // Try to find tool by: 1. ID, 2. Name, 3. Legacy Slug
+                    const t = allToolsFlat.find(t => {
+                        if (t.id === r.toolId) return true;
+                        if (t.name === r.toolId) return true;
+                        const slug = t.name.toLowerCase().replace(/\s+/g, '-');
+                        if (slug === r.toolId) return true;
+                        return false;
+                    });
+
+                    // Use resolved tool or fallback object
+                    return t ? { ...t, label: t.name, id: t.id || r.toolId } : { id: r.toolId, label: r.toolId };
+                });
+
+                // Deduplicate by ID to avoid "same key" warning
+                const uniqueTools = [];
+                const seenIds = new Set();
+
+                resolvedTools.forEach(t => {
+                    const id = t.id || t.label; // Fallback to label if no ID
+                    if (!seenIds.has(id)) {
+                        seenIds.add(id);
+                        uniqueTools.push(t);
+                    }
+                });
+
+                setCoreTools(uniqueTools);
+            } else {
+                setCoreTools([]);
+            }
+        }
+    }, [refreshTrigger, customTools, user]); // Re-run when user interactions happen
 
     const handleClusterSelect = (clusterId) => {
         setSelectedClusterId(clusterId);
@@ -220,6 +279,7 @@ window.App = function App() {
                                 onClusterSelect={handleClusterSelect}
                                 selectedClusterId={selectedClusterId}
                                 clusterScores={clusterScores}
+                                userCoreNodes={coreTools.length > 0 ? coreTools : null}
                             />
                         </div>
 

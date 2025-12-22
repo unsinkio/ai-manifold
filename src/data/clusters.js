@@ -9,7 +9,7 @@ window.ManifoldData.clusters = [
         geodesic:
             "Contenido → Competencias → Actividades → Evaluación → Mejora continua.",
         tools: [
-            { name: "Notion AI", description: "Syllabus, documentación y plantillas de curso." },
+            { id: "notion", name: "Notion AI", description: "Syllabus, documentación y plantillas de curso." },
             { name: "Cengage MindTap AI", description: "Alineación de actividades con competencias." },
             { name: "Eduaide / Class Companion", description: "Generación de actividades dentro del LMS." },
             { name: "Gradescope AI", description: "Calificación asistida y feedback masivo." },
@@ -25,12 +25,12 @@ window.ManifoldData.clusters = [
         geodesic:
             "Notas → Acciones → Reuniones → Documentos → Decisiones.",
         tools: [
-            { name: "Microsoft Copilot", description: "IA en Outlook, Word, Excel, PowerPoint y Teams." },
-            { name: "Google Gemini Workspace", description: "IA en Docs, Sheets, Gmail y Meet." },
+            { id: "copilot", name: "Microsoft Copilot", description: "IA en Outlook, Word, Excel, PowerPoint y Teams." },
+            { id: "gemini", name: "Google Gemini Workspace", description: "IA en Docs, Sheets, Gmail y Meet." },
             { name: "Asana Intelligence", description: "Estructura proyectos y detecta bloqueos." },
             { name: "Monday AI", description: "Automation y asistencia en tableros de trabajo." },
-            { name: "Perplexity Enterprise", description: "Investigación aplicada a informes." },
-            { name: "Notion AI", description: "Repositorio vivo de procesos y decisiones." }
+            { id: "perplexity", name: "Perplexity Enterprise", description: "Investigación aplicada a informes." },
+            { id: "notion", name: "Notion AI", description: "Repositorio vivo de procesos y decisiones." }
         ]
     },
     {
@@ -91,7 +91,7 @@ window.ManifoldData.clusters = [
         geodesic:
             "Pregunta → Papers → Extracción de variables → Síntesis → Modelo.",
         tools: [
-            { name: "Perplexity Pro", description: "Preguntas complejas con citas confiables." },
+            { id: "perplexity", name: "Perplexity Pro", description: "Preguntas complejas con citas confiables." },
             { name: "Elicit", description: "Revisiones sistemáticas y extracción de datos." },
             { name: "Wolfram + LLM", description: "Cómputo simbólico y numérico avanzado." },
             { name: "Scite AI", description: "Contexto de citas: apoyo o contradicción." }

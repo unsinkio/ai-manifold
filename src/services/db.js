@@ -134,5 +134,59 @@ window.ManifoldDB = {
 
         await batch.commit();
         console.log("Migration completed successfully");
+    },
+    // --- Ontology (Cloud + Fallback) ---
+    // Seed local clusters.js data to Firestore (Admin / One-time)
+    seedOntology: async function () {
+        if (!this.db) return;
+        const clusters = window.ManifoldData ? window.ManifoldData.clusters : [];
+        if (clusters.length === 0) {
+            console.error("No local clusters found to seed");
+            return;
+        }
+
+        const batch = this.db.batch();
+        const ontologyRef = this.db.collection('ontology');
+
+        clusters.forEach(cluster => {
+            const ref = ontologyRef.doc(cluster.id);
+            batch.set(ref, cluster);
+        });
+
+        try {
+            await batch.commit();
+            console.log("Ontology seeded successfully!");
+            alert("Ontología subida a la nube correctamente.");
+        } catch (e) {
+            console.error("Error seeding ontology:", e);
+        }
+    },
+
+    // Get ontology with offline fallback
+    getOntology: async function () {
+        // ALWAYS fallback to local if something fails or is loading
+        const localClusters = window.ManifoldData ? window.ManifoldData.clusters : [];
+
+        if (!this.db) return localClusters;
+
+        try {
+            // Try network fetch
+            // Check internet connection implicitly via Firestore
+            const snapshot = await this.db.collection('ontology').get();
+
+            if (snapshot.empty) {
+                console.log("No cloud ontology found. Using local.");
+                return localClusters;
+            }
+
+            const cloudClusters = snapshot.docs.map(doc => doc.data());
+
+            // Simple sort by ID to maintain some order, or add an 'order' field later
+            // For now, map to order of localClusters if possible, otherwise just return
+            return cloudClusters;
+        } catch (e) {
+            console.warn("Could not fetch cloud ontology (offline?), using local fallback.", e);
+            return localClusters;
+        }
     }
 };

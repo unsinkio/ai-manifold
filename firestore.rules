@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. User Data (Profiles, Reviews, Custom Tools)
+    // Only the owner can read/write their own data
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // 2. Ontology (Clusters, Static Tools)
+    // READ: Public (or just authenticated) -> All users need to download the map structure
+    // WRITE: Only authenticated users (temporarily for seeding) or Admnins
+    match /ontology/{document=**} {
+      allow read: if true; 
+      allow write: if request.auth != null; 
+    }
+  }
+}
