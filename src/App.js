@@ -63,10 +63,10 @@ window.App = function App() {
         Auth.init();
         DB.init();
 
-        // Hybrid Load: Fetch Cloud Ontology 
-        DB.getOntology().then(cloudData => {
+        // Hybrid Load: Real-time Ontology Subscription
+        const unsubscribeOntology = DB.subscribeToOntology(cloudData => {
             if (cloudData && cloudData.length > 0) {
-                console.log("Loaded ontology from cloud");
+                console.log("Updated ontology from cloud/stream");
                 setClusters(cloudData);
             }
         });
@@ -127,10 +127,17 @@ window.App = function App() {
 
                 // FETCH CUSTOM TOOLS
                 try {
+                    // Sync Reviews First
+                    const cloudReviews = await DB.getUserReviews(u.uid);
+                    if (cloudReviews && cloudReviews.length > 0) {
+                        LocalStorage.syncReviews(cloudReviews);
+                        setRefreshTrigger(prev => prev + 1);
+                    }
+
                     const myTools = await DB.getCustomTools(u.uid);
                     setCustomTools(myTools);
                 } catch (e) {
-                    console.error("Failed to load custom tools", e);
+                    console.error("Failed to load user data", e);
                 }
             }
         });

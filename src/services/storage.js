@@ -77,5 +77,14 @@ window.ManifoldStorage = {
     getReviewsBySector: function (sector) {
         const db = this.getDB();
         return db.reviews.filter(r => r.sector === sector);
+    },
+
+    // --- Sync Helper ---
+    syncReviews: function (cloudReviews) {
+        if (!Array.isArray(cloudReviews)) return;
+        const db = this.getDB();
+        // Replace local reviews with cloud source of truth
+        db.reviews = cloudReviews;
+        this.saveDB(db);
     }
 };
