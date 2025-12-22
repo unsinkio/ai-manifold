@@ -58,6 +58,7 @@ window.App = function App() {
     };
 
     // Initial Load & Auth Check
+    // Initial Load & Auth Check (Run ONCE)
     useEffect(() => {
         // Init Services
         Auth.init();
@@ -107,23 +108,12 @@ window.App = function App() {
                 }
 
                 // Load Cloud Data to State (Hybrid Approach for now)
-                // ideally we should fetch from DB and populate Clustering engine
-                // For this MVP, we might still rely on LocalStorage for "fast" reads 
-                // OR we need to update clustering.js to accept data injection.
-                // Let's reload profile name from Cloud to be sure.
                 const cloudProfile = await DB.getUserProfile(u.uid);
                 if (cloudProfile && cloudProfile.sector) {
                     setProfileName(cloudProfile.sector);
+                    // Also sync profile to local for consistency
+                    LocalStorage.saveProfile(cloudProfile);
                 }
-
-                // Update Clustering Engine with Cloud Data?
-                // Currently Clustering.js reads directly from LocalStorage.
-                // This is a legacy debt. FIX: We'll inject cloud reviews into Clustering logic later.
-                // For this step, let's assume Migration pushed data to Cloud, 
-                // and we will KEEP LocalStorage as the "Client Cache" for now to avoid rewriting Clustering.js entirely in this step.
-                // So: User Auth -> Sync Local -> Cloud.
-                // Future read: Cloud -> Local -> UI.
-                // --- MIGRATION LOGIC END ---
 
                 // FETCH CUSTOM TOOLS
                 try {
@@ -142,10 +132,19 @@ window.App = function App() {
             }
         });
 
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeOntology) unsubscribeOntology();
+        };
+    }, []); // Empty dependency array -> Run ONCE
+
+    // Reactive Updates (Runs when data changes)
+    useEffect(() => {
         // Load local profile data (Fallback / Cache)
         if (LocalStorage) {
             const p = LocalStorage.getProfile();
-            if (p.sector) setProfileName(p.sector);
+            // Fallback for profile name if not logged in
+            if (!user && p.sector) setProfileName(p.sector);
 
             const scores = {};
             clusters.forEach(c => {
@@ -153,12 +152,7 @@ window.App = function App() {
             });
             setClusterScores(scores);
         }
-
-        return () => {
-            unsubscribeAuth();
-            if (unsubscribeOntology) unsubscribeOntology();
-        };
-    }, [refreshTrigger, view]);
+    }, [refreshTrigger, view, clusters, user]);
 
     // --- CORE TOOLS LOGIC ---
     useEffect(() => {
