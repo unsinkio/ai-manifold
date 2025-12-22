@@ -3,6 +3,7 @@ const { useState, useEffect } = React;
 const RadialMap = window.RadialMap;
 const UserProfile = window.UserProfile;
 const ToolEvaluator = window.ToolEvaluator;
+const ToolAdder = window.ToolAdder;
 const LoginScreen = window.LoginScreen;
 const LocalStorage = window.ManifoldStorage; // Renamed to avoid confusion
 const DB = window.ManifoldDB; // Cloud DB
@@ -12,14 +13,16 @@ const clusters = window.ManifoldData ? window.ManifoldData.clusters : [];
 
 window.App = function App() {
     // Auth State
-    const [user, setUser] = useState(null); // Firebase User
+    const [user, setUser] = useState(null);
     const [authInitialized, setAuthInitialized] = useState(false);
-    const [showLogin, setShowLogin] = useState(true); // Default to showing login
+    const [showLogin, setShowLogin] = useState(true);
 
     // App State
-    const [view, setView] = useState('map'); // 'map', 'profile'
+    const [view, setView] = useState('map');
     const [selectedClusterId, setSelectedClusterId] = useState(null);
     const [evaluatingTool, setEvaluatingTool] = useState(null);
+    const [addingTool, setAddingTool] = useState(false); // New state for ToolAdder
+    const [customTools, setCustomTools] = useState([]); // Store user's custom tools
     const [profileName, setProfileName] = useState("Mi Perfil");
     const [clusterScores, setClusterScores] = useState({});
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -81,13 +84,21 @@ window.App = function App() {
                 // So: User Auth -> Sync Local -> Cloud.
                 // Future read: Cloud -> Local -> UI.
                 // --- MIGRATION LOGIC END ---
+
+                // FETCH CUSTOM TOOLS
+                try {
+                    const myTools = await DB.getCustomTools(u.uid);
+                    setCustomTools(myTools);
+                } catch (e) {
+                    console.error("Failed to load custom tools", e);
+                }
             }
         });
 
         // Load local profile data (Fallback / Cache)
         if (LocalStorage) {
             const p = LocalStorage.getProfile();
-            if (p.sector) setProfileName(p.sector); // Override with local sector if available? Maybe.
+            if (p.sector) setProfileName(p.sector);
 
             const scores = {};
             clusters.forEach(c => {
@@ -99,40 +110,12 @@ window.App = function App() {
         return () => unsubscribe();
     }, [refreshTrigger, view]);
 
-    // Derived Data Logic
-    const selectedCluster = clusters.find(c => c.id === selectedClusterId);
-
-    const coreDetails = {
-        title: "Núcleo Central de IA",
-        subtitle: "IAs que conectan múltiples industrias y flujos de trabajo.",
-        description: "Estas herramientas viven en el centro del mapa...",
-        geodesic: "Idea → Borrador → Investigación → Refinamiento → Reporte",
-        tools: [
-            { id: "notion", name: "Notion AI", description: "Cerebro operativo." },
-            { id: "copilot", name: "Microsoft Copilot", description: "IA en Office 365." },
-            { id: "perplexity", name: "Perplexity", description: "Investigación contextual." },
-            { id: "chatgpt", name: "ChatGPT", description: "Motor de razonamiento." }
-        ]
+    const handleClusterSelect = (clusterId) => {
+        setSelectedClusterId(clusterId);
+        setView('map'); // Ensure we stay on map view but open sidebar
     };
 
-    let displayTools = selectedCluster ? selectedCluster.tools : coreDetails.tools;
-    if (selectedCluster) {
-        displayTools = Clustering.getRecommendedTools(selectedCluster.label, displayTools);
-    } else {
-        displayTools = Clustering.getRecommendedTools("General", displayTools);
-    }
-
-    const displayData = selectedCluster ? {
-        title: selectedCluster.label,
-        subtitle: "Cluster de herramientas especializadas.",
-        description: selectedCluster.description,
-        geodesic: selectedCluster.geodesic,
-        tools: displayTools
-    } : { ...coreDetails, tools: displayTools };
-
-
-    // Handlers
-    const handleEvaluate = (tool) => {
+    const handleEvaluateTool = (tool) => {
         setEvaluatingTool(tool);
     };
 
@@ -141,167 +124,181 @@ window.App = function App() {
         setRefreshTrigger(prev => prev + 1);
     };
 
-    const handleSaveProfile = () => {
-        const p = Storage.getProfile();
-        setProfileName(p.sector || (user ? user.displayName : "Mi Perfil"));
-        setView('map');
+    // --- Custom Tool Handlers ---
+    const handleAddToolStart = () => {
+        setAddingTool(true);
     };
 
-    const handleLogout = async () => {
-        await Auth.signOut();
-        setShowLogin(true);
-        setUser(null);
+    const handleAddToolConfirm = async (toolData) => {
+        if (!user) return;
+        try {
+            const newTool = await DB.saveCustomTool(user.uid, toolData);
+            setCustomTools(prev => [newTool, ...prev]);
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
     };
 
-    // Render Login Screen if needed
+
+    // Login Handlers
+    const handleLoginSuccess = async () => {
+        // Rely on onAuthStateChanged to handle state updates
+    };
+
+    const handleGuest = () => {
+        setShowLogin(false);
+    };
+
+    // Prepare Display Data
+    let displayData = null;
+    if (selectedClusterId) {
+        const cluster = clusters.find(c => c.id === selectedClusterId);
+        if (cluster) {
+            // MERGE STATIC + CUSTOM TOOLS
+            // Filter custom tools for this cluster
+            const myClusterTools = customTools.filter(t => t.sectorId === selectedClusterId).map(t => ({
+                ...t,
+                isCustom: true // Flag to identify them in UI
+            }));
+
+            // Combine
+            const allToolsForCluster = [...cluster.tools, ...myClusterTools];
+
+            // Get recommendations/scores
+            const recommendedTools = Clustering.getRecommendedTools(cluster.label, allToolsForCluster);
+
+            displayData = {
+                ...cluster,
+                tools: recommendedTools
+            };
+        }
+    }
+
     if (showLogin && !user) {
-        return (
-            <LoginScreen
-                onLoginSuccess={(u) => {
-                    setUser(u);
-                    setShowLogin(false);
-                }}
-                onSkip={() => setShowLogin(false)}
-            />
-        );
+        return (<LoginScreen onLoginSuccess={handleLoginSuccess} onSkip={handleGuest} />);
     }
 
     return (
-        <div className="flex h-screen bg-[#0b1020] text-gray-100 font-sans overflow-hidden">
-
-            {/* -- Navigation -- */}
-            <div className="absolute top-4 right-6 z-50 flex gap-4 items-center">
-                {view !== 'map' && (
-                    <button
-                        onClick={() => setView('map')}
-                        className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-full text-sm backdrop-blur-md transition-colors"
-                    >
-                        ← Volver al Mapa
-                    </button>
-                )}
-
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setView('profile')}
-                        className="px-4 py-2 bg-[#9da2ff]/20 hover:bg-[#9da2ff]/30 text-[#9da2ff] border border-[#9da2ff]/50 rounded-full text-sm backdrop-blur-md transition-colors flex items-center gap-2"
-                    >
-                        {user ? (
-                            <img src={user.photoURL} className="w-5 h-5 rounded-full border border-white/30" />
-                        ) : (
-                            <span className="w-2 h-2 rounded-full bg-green-400"></span>
-                        )}
-                        {profileName}
-                    </button>
-
+        <div className="flex flex-col h-screen bg-[#050712] text-white font-sans overflow-hidden">
+            {/* Header */}
+            <header className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0a0f1e] z-10">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#5b8def] to-[#9da2ff] shadow-[0_0_15px_rgba(91,141,239,0.5)]"></div>
+                    <span className="text-xl font-bold tracking-tight">AI MANIFOLD</span>
+                </div>
+                <div className="flex items-center gap-6">
+                    <nav className="flex gap-4 text-sm font-medium text-gray-400">
+                        <button onClick={() => setView('map')} className={`hover:text-white transition-colors ${view === 'map' ? 'text-white' : ''}`}>Mapa</button>
+                        <button onClick={() => setView('profile')} className={`hover:text-white transition-colors ${view === 'profile' ? 'text-white' : ''}`}>
+                            {user ? (
+                                <span className="flex items-center gap-2">
+                                    {user.photoURL && <img src={user.photoURL} className="w-6 h-6 rounded-full" />}
+                                    {profileName}
+                                </span>
+                            ) : "Mi Perfil"}
+                        </button>
+                    </nav>
                     {user && (
-                        <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-white underline p-2">
-                            Salir
-                        </button>
-                    )}
-
-                    {!user && !showLogin && (
-                        <button onClick={() => setShowLogin(true)} className="text-xs text-[#9da2ff] hover:text-white underline p-2">
-                            Login
-                        </button>
+                        <button onClick={() => Auth.signOut()} className="text-xs text-red-400 hover:text-red-300">Salir</button>
                     )}
                 </div>
-            </div>
+            </header>
 
-            {/* -- Main Content -- */}
-            {view === 'profile' ? (
-                <div className="w-full h-full overflow-y-auto pt-20">
-                    <UserProfile onSave={handleSaveProfile} />
-                </div>
-            ) : (
-                <>
-                    {/* -- Map Canvas -- */}
-                    <div className="flex-grow relative bg-slate-900 overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#1a2440] to-[#050712] z-0 pointer-events-none" />
-                        <div className="relative z-10 w-full h-full">
-                            {RadialMap ? (
-                                <RadialMap
-                                    onClusterSelect={setSelectedClusterId}
-                                    selectedClusterId={selectedClusterId}
-                                    clusterScores={clusterScores}
-                                />
-                            ) : <div className="p-10">Cargando Mapa...</div>}
-                        </div>
+            {/* Main Content */}
+            <main className="flex-1 relative flex overflow-hidden">
+                {view === 'profile' ? (
+                    <div className="w-full h-full overflow-y-auto">
+                        <UserProfile onSave={() => setRefreshTrigger(prev => prev + 1)} />
                     </div>
+                ) : (
+                    <>
+                        {/* Map Area */}
+                        <div className="flex-1 relative h-full flex items-center justify-center bg-[radial-gradient(circle_at_center,_#1a2440_0%,_#050712_100%)]">
+                            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #2d3b5e 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+                            <RadialMap
+                                onClusterSelect={handleClusterSelect}
+                                selectedClusterId={selectedClusterId}
+                                clusterScores={clusterScores}
+                            />
+                        </div>
 
-                    {/* -- Sidebar -- */}
-                    <div className="w-96 bg-[#050712] border-l border-white/10 flex flex-col p-5 overflow-y-auto shadow-2xl z-20">
-                        <header className="mb-6">
-                            <h1 className="text-lg font-bold uppercase tracking-wider text-[#9da2ff] mb-2">Manifold de IA</h1>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#9da2ff]/10 border border-[#9da2ff]/30 rounded-full text-xs text-[#c2c6ff]">
-                                <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                                <span>Modo Exploración {user ? "" : "(Invitado)"}</span>
-                            </div>
-                        </header>
+                        {/* Sidebar */}
+                        <div className={`w-96 bg-[#0f172a]/95 backdrop-blur-md border-l border-white/10 p-6 flex flex-col transition-all duration-300 absolute right-0 top-0 bottom-0 shadow-2xl ${selectedClusterId ? 'translate-x-0' : 'translate-x-full'}`}>
+                            {selectedClusterId && displayData && (
+                                <>
+                                    <button
+                                        onClick={() => setSelectedClusterId(null)}
+                                        className="mb-4 text-sm text-gray-400 hover:text-white flex items-center gap-2"
+                                    >
+                                        ← Volver al Mapa
+                                    </button>
 
-                        <div className="flex-1 flex flex-col gap-6 animate-fadeIn">
-                            <div>
-                                <h2 className="text-xl font-semibold text-white mb-1">{displayData.title}</h2>
-                                <p className="text-sm text-gray-400">{displayData.subtitle}</p>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="text-xs uppercase tracking-wide text-[#9da2ff] mb-2">Descripción</h3>
-                                    <p className="text-sm leading-relaxed text-[#d4d7ff] bg-white/5 p-3 rounded-lg border border-white/5">
-                                        {displayData.description}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <h3 className="text-xs uppercase tracking-wide text-[#9da2ff] mb-2">Flujo Geodésico Típico</h3>
-                                    <div className="text-xs font-mono text-cyan-300 bg-cyan-900/20 p-2 rounded border border-cyan-500/30">
-                                        {displayData.geodesic}
+                                    <div className="mb-6">
+                                        <h2 className="text-2xl font-bold mb-2" style={{ color: displayData.color }}>{displayData.label}</h2>
+                                        <p className="text-sm text-gray-300 leading-relaxed mb-4">{displayData.description}</p>
+                                        <div className="text-xs font-mono text-gray-500 bg-black/20 p-3 rounded border border-white/5">
+                                            <span className="block mb-1 text-gray-400">GEODESICA TIPICA:</span>
+                                            {displayData.geodesic}
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div>
-                                    <h3 className="text-xs uppercase tracking-wide text-[#9da2ff] mb-3">Herramientas Clave</h3>
-                                    <ul className="space-y-2">
-                                        {displayData.tools.map((t, idx) => (
-                                            <li key={idx} className="group flex flex-col gap-2 p-3 rounded bg-white/5 hover:bg-white/10 transition-colors border border-transparent hover:border-white/10 relative overflow-hidden">
-
-                                                <div className="flex items-start gap-3 relative z-10">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-[#9da2ff] mt-1.5" />
-                                                    <div className="flex-grow">
-                                                        <div className="flex justify-between items-start">
-                                                            <strong className="block text-sm text-[#e3e5ff]">{t.name}</strong>
-                                                            {/* Show Fit Badge if score > 0 */}
-                                                            {t.score > 0 && (
-                                                                <span className="text-[10px] bg-green-500/20 text-green-300 px-1.5 py-0.5 rounded border border-green-500/30 font-mono">
-                                                                    {t.score}% Fit
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-xs text-[#8e93c2]">{t.description}</span>
-                                                    </div>
+                                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider sticky top-0 bg-[#0f172a] py-2 z-10">
+                                            Herramientas Recomendadas
+                                        </h3>
+                                        {displayData.tools.map((tool, idx) => (
+                                            <div
+                                                key={idx}
+                                                onClick={() => handleEvaluateTool(tool)}
+                                                className="group p-4 rounded-lg bg-[#1a2440] hover:bg-[#253259] border border-white/5 hover:border-[#9da2ff]/30 transition-all cursor-pointer relative"
+                                            >
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <h4 className="font-bold text-white group-hover:text-[#9da2ff] transition-colors">{tool.name}</h4>
+                                                    {tool.score !== undefined && (
+                                                        <span className="text-xs font-bold text-[#9da2ff] bg-[#9da2ff]/10 px-2 py-0.5 rounded">
+                                                            {Math.round(tool.score)}% Fit
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <button
-                                                    onClick={() => handleEvaluate(t)}
-                                                    className="self-end text-xs bg-[#9da2ff]/20 text-[#9da2ff] px-2 py-1 rounded hover:bg-[#9da2ff] hover:text-white transition-colors"
-                                                >
-                                                    Evaluar Fit
-                                                </button>
-                                            </li>
+                                                <p className="text-xs text-gray-400 line-clamp-2">{tool.description}</p>
+                                                {tool.isCustom && <span className="absolute bottom-1 right-2 text-[10px] text-gray-500">Añadida por ti</span>}
+                                            </div>
                                         ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
+                                    </div>
 
-            {/* -- Tool Evaluator Modal -- */}
+                                    {/* ADD TOOL BUTTON */}
+                                    {user && (
+                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                            <button
+                                                onClick={handleAddToolStart}
+                                                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1a2440] hover:bg-[#253259] border border-dashed border-gray-600 hover:border-[#9da2ff] text-gray-400 hover:text-white rounded-lg transition-all text-sm font-medium"
+                                            >
+                                                <span>+</span> Agregar Herramienta a este Sector
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </>
+                )}
+            </main>
+
+            {/* Modals */}
             {evaluatingTool && (
                 <ToolEvaluator
-                    toolId={evaluatingTool.id}
+                    toolId={evaluatingTool.id || evaluatingTool.name} // Fallback to name if no ID
                     toolName={evaluatingTool.name}
                     onClose={handleSaveReview}
+                />
+            )}
+
+            {addingTool && selectedClusterId && (
+                <ToolAdder
+                    sectorId={selectedClusterId}
+                    onClose={() => setAddingTool(false)}
+                    onAdd={handleAddToolConfirm}
                 />
             )}
         </div>

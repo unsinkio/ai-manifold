@@ -73,6 +73,36 @@ window.ManifoldDB = {
         }
     },
 
+    // --- Custom Tools (User Generated) ---
+    saveCustomTool: async function (userId, toolData) {
+        if (!this.db) return;
+        try {
+            // tools stored in users/{userId}/custom_tools
+            const newToolRef = this.db.collection('users').doc(userId).collection('custom_tools').doc();
+            await newToolRef.set({
+                id: newToolRef.id,
+                ...toolData,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log("Custom tool saved");
+            return { id: newToolRef.id, ...toolData };
+        } catch (e) {
+            console.error("Error saving custom tool:", e);
+            throw e;
+        }
+    },
+
+    getCustomTools: async function (userId) {
+        if (!this.db) return [];
+        try {
+            const snapshot = await this.db.collection('users').doc(userId).collection('custom_tools').orderBy('timestamp', 'desc').get();
+            return snapshot.docs.map(doc => doc.data());
+        } catch (e) {
+            console.error("Error fetching custom tools:", e);
+            return [];
+        }
+    },
+
     // --- Migration Helper ---
     // Syncs local data to cloud one-time
     migrateLocalData: async function (userId, localData) {
