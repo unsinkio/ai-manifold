@@ -160,32 +160,58 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                     />
                 ))}
 
-                {/* --- Synapses (Dynamic Connections) --- */}
-                {clusterElements.map((ce, i) => {
-                    // Only draw synapse if score > 0 (it's active)
-                    if (ce.score <= 0.05) return null;
+                {/* --- Synapses (Semantic Connections) --- */}
+                {/* Draw lines from Active Core Nodes to their respective Clusters */}
+                {activeCoreNodes.map((coreNode, i) => {
+                    // Find which clusters contains this tool
+                    // We need to match coreNode.id (or label) with cluster tools
+                    const targetClustersIds = clusters.filter(c => {
+                        // Check static tools
+                        const hasStatic = c.tools.some(t => {
+                            // Match by ID, Name or Slug
+                            const cid = t.id || t.name.toLowerCase().replace(/\s+/g, '-');
+                            return cid === coreNode.id || t.name === coreNode.label;
+                        });
+                        // Check custom tools (if they have sectorId matching cluster.id)
+                        // Actually coreNode might carry sector info if passed from topReviews
+                        return hasStatic;
+                    }).map(c => c.id);
 
-                    const coreNode = corePositions[i % corePositions.length];
+                    // Also check if coreNode came with sectorId (custom tool)
+                    if (coreNode.sectorId && !targetClustersIds.includes(coreNode.sectorId)) {
+                        targetClustersIds.push(coreNode.sectorId);
+                    }
 
-                    // Bezier Curve: Core -> Control -> ClusterNode
-                    // Control point pulls towards center-mid
-                    const cp1 = { x: (coreNode.x + ce.nodePos.x) / 2, y: (coreNode.y + ce.nodePos.y) / 2 };
+                    return targetClustersIds.map(clusterId => {
+                        const clusterIndex = clusters.findIndex(c => c.id === clusterId);
+                        if (clusterIndex === -1) return null;
 
-                    return (
-                        <path
-                            key={`synapse-${i}`}
-                            d={`M ${coreNode.x} ${coreNode.y} Q ${cp1.x} ${cp1.y} ${ce.nodePos.x} ${ce.nodePos.y}`}
-                            fill="none"
-                            stroke={`rgba(157, 162, 255, ${0.2 + ce.score * 0.6})`}
-                            strokeWidth={0.5 + ce.score * 1.5}
-                            strokeDasharray={ce.score > 0.5 ? "4 2" : "none"} // Dash for high activity
-                            className="pointer-events-none transition-all duration-1000"
-                        >
-                            {ce.score > 0.5 && (
-                                <animate attributeName="stroke-dashoffset" from="100" to="0" dur="2s" repeatCount="indefinite" />
-                            )}
-                        </path>
-                    );
+                        const clusterElement = clusterElements[clusterIndex];
+                        if (!clusterElement) return null;
+
+                        // Calculate points
+                        const start = corePositions[i];
+                        const end = clusterElement.nodePos;
+
+                        // Control point for curvature
+                        const cp = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+
+                        return (
+                            <path
+                                key={`synapse-${coreNode.id}-${clusterId}`}
+                                d={`M ${start.x} ${start.y} Q ${cp.x} ${cp.y} ${end.x} ${end.y}`}
+                                fill="none"
+                                stroke={`rgba(157, 162, 255, ${0.4 + clusterElement.score * 0.6})`}
+                                strokeWidth={1 + clusterElement.score * 2}
+                                strokeDasharray={clusterElement.score > 0.6 ? "4 3" : "none"}
+                                className="pointer-events-none"
+                            >
+                                {clusterElement.score > 0.6 && (
+                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.5s" repeatCount="indefinite" />
+                                )}
+                            </path>
+                        );
+                    });
                 })}
 
                 {/* --- Core --- */}
@@ -196,7 +222,7 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                         <text x={pos.x + 10} y={pos.y + 4} fill="#d7dbff" fontSize="10" className="pointer-events-none select-none">{pos.label}</text>
                     </g>
                 ))}
-                <text x={cx} y={cy + coreRadius * 0.8} textAnchor="middle" fill="#9da2ff" fontSize="11" className="opacity-70 pointer-events-none select-none">Núcleo de IA</text>
+                {/* REMOVED LABEL "Nucleo de IA" */}
 
                 {/* --- Cluster Elements --- */}
                 {clusterElements.map((el) => {

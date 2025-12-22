@@ -156,7 +156,9 @@ window.ManifoldDB = {
         try {
             await batch.commit();
             console.log("Ontology seeded successfully!");
-            alert("Ontología subida a la nube correctamente.");
+            window.dispatchEvent(new CustomEvent('manifold-toast', {
+                detail: { message: "Ontología subida a la nube correctamente.", type: 'success' }
+            }));
         } catch (e) {
             console.error("Error seeding ontology:", e);
         }

@@ -29,6 +29,21 @@ window.App = function App() {
     const [clusterScores, setClusterScores] = useState({});
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [coreTools, setCoreTools] = useState([]); // Dynamic Core Nodes
+    const [toast, setToast] = useState({ message: null, type: 'info' });
+
+    // Toast Event Listener
+    useEffect(() => {
+        const handleToast = (e) => {
+            setToast({ message: e.detail.message, type: e.detail.type || 'info' });
+        };
+        window.addEventListener('manifold-toast', handleToast);
+        return () => window.removeEventListener('manifold-toast', handleToast);
+    }, []);
+
+    // Helper to trigger toast
+    const showToast = (message, type = 'info') => {
+        setToast({ message, type });
+    };
 
     // Initial Load & Auth Check
     useEffect(() => {
@@ -71,7 +86,9 @@ window.App = function App() {
                         });
                         localStorage.setItem('manifold_migrated_to_cloud', 'true');
                         // Optional: Clear local DB? LocalStorage.initDB();
-                        alert("¡Tus datos locales se han sincronizado con la nube!");
+                        window.dispatchEvent(new CustomEvent('manifold-toast', {
+                            detail: { message: "¡Tus datos locales se han sincronizado con la nube!", type: 'success' }
+                        }));
                     } catch (e) {
                         console.error("Migration failed", e);
                     }
@@ -362,6 +379,9 @@ window.App = function App() {
                     onAdd={handleAddToolConfirm}
                 />
             )}
+
+            {/* Global Toast */}
+            {window.Toast && <window.Toast message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, message: null })} />}
         </div>
     );
 };
