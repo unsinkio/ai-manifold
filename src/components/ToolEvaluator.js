@@ -1,7 +1,7 @@
 const { useState, useEffect } = React;
 const Storage = window.ManifoldStorage;
 
-window.ToolEvaluator = function ToolEvaluator({ toolId, toolName, onClose }) {
+window.ToolEvaluator = function ToolEvaluator({ toolId, toolName, sectorId, onClose }) {
     const [ratings, setRatings] = useState({
         accuracy: 3,
         speed: 3,
@@ -32,7 +32,8 @@ window.ToolEvaluator = function ToolEvaluator({ toolId, toolName, onClose }) {
         const reviewData = {
             toolId,
             ratings,
-            fitScore: calculateFitScore() // Ensure score is part of object
+            fitScore: calculateFitScore(),
+            sector: sectorId // CRITICAL: Saved for map visualization logic
         };
 
         // 1. Save Local

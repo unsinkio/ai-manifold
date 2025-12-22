@@ -285,11 +285,12 @@ window.App = function App() {
                 )}
             </main>
 
-            {/* Modals */}
+            {/* -- Tool Evaluator Modal -- */}
             {evaluatingTool && (
                 <ToolEvaluator
-                    toolId={evaluatingTool.id || evaluatingTool.name} // Fallback to name if no ID
+                    toolId={evaluatingTool.id || evaluatingTool.name}
                     toolName={evaluatingTool.name}
+                    sectorId={selectedClusterId || evaluatingTool.sectorId} // Pass context or tool's own sector
                     onClose={handleSaveReview}
                 />
             )}
