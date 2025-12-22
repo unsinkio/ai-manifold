@@ -11,7 +11,8 @@ function pol2cart(r, angleRad, cx, cy) {
 }
 
 // Assign component to window
-window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {} }) {
+// Assign component to window
+window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null }) {
     const containerRef = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
@@ -33,37 +34,51 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
     const { width, height } = dimensions;
     const cx = width / 2;
     const cy = height / 2;
-    const baseRadius = Math.min(width, height) * 0.35; // Slightly larger than original
 
-    // Geometry calculations
-    const coreRadius = baseRadius * 0.4;
-    const arcInner = baseRadius * 0.9;
-    const arcOuter = baseRadius * 1.35;
+    // ADJUSTED GEOMETRY: Smaller radius to prevent clipping
+    const baseRadius = Math.min(width, height) * 0.28;
 
     // -- Core Nodes Positions --
-    const coreAngleStep = (Math.PI * 2) / (coreNodes.length || 1);
-    const corePositions = coreNodes.map((node, i) => {
+    // Use user nodes if provided, otherwise default static
+    const activeCoreNodes = userCoreNodes || coreNodes;
+
+    const coreRadius = baseRadius * 0.5; // More space for core
+    const coreAngleStep = (Math.PI * 2) / (activeCoreNodes.length || 1);
+    const corePositions = activeCoreNodes.map((node, i) => {
         const angle = i * coreAngleStep - Math.PI / 2;
         return { ...node, ...pol2cart(coreRadius, angle, cx, cy) };
     });
 
-    // -- Cluster Arcs & Nodes Positions --
-    // Handle empty clusters gracefully
     if (!clusters || clusters.length === 0) return null;
 
     const angleStep = (Math.PI * 2) / clusters.length;
+
+    // -- Prepare Cluster Data with Reactive Geometry --
     const clusterElements = clusters.map((cluster, i) => {
+        const score = clusterScores[cluster.id] || 0; // 0 to 1
+
+        // REACTIVE GEOMETRY: Radius expands with score
+        // Base sizes
+        const baseInner = baseRadius * 0.9;
+        const baseOuter = baseRadius * 1.35;
+
+        // Expansion factor (up to 15% larger)
+        const expansion = score * (baseRadius * 0.15);
+
+        const arcInner = baseInner; // Inner stays fixed for stability
+        const arcOuter = baseOuter + expansion; // Outer grows
+
         const startAngle = i * angleStep - Math.PI / 2;
         const endAngle = startAngle + angleStep * 0.9;
         const midAngle = (startAngle + endAngle) / 2;
 
+        // Calculate Arc Path
         const p1 = pol2cart(arcInner, startAngle, cx, cy);
         const p2 = pol2cart(arcInner, endAngle, cx, cy);
         const p3 = pol2cart(arcOuter, endAngle, cx, cy);
         const p4 = pol2cart(arcOuter, startAngle, cx, cy);
 
         const largeArcFlag = endAngle - startAngle <= Math.PI ? "0" : "1";
-
         const pathData = [
             "M", p1.x, p1.y,
             "A", arcInner, arcInner, 0, largeArcFlag, 1, p2.x, p2.y,
@@ -74,20 +89,38 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
 
         const nodeR = (arcInner + arcOuter) / 2;
         const nodePos = pol2cart(nodeR, midAngle, cx, cy);
+        const labelPos = pol2cart(arcOuter + 25, midAngle, cx, cy);
 
-        // Calculate label position slightly outside
-        const labelPos = pol2cart(arcOuter + 20, midAngle, cx, cy);
+        // -- SATELLITE NODES (Tools) --
+        // Merge static + custom tools for this cluster
+        const clusterCustomTools = customTools.filter(t => t.sectorId === cluster.id);
+        const allTools = [...(cluster.tools || []), ...clusterCustomTools];
 
-        // Score logic
-        const score = clusterScores[cluster.id] || 0; // 0 to 1
+        // Distribute tools along an orbit just outside the cluster
+        const orbitRadius = arcOuter + 10;
+        const totalTools = allTools.length;
+
+        const satellites = allTools.map((tool, idx) => {
+            // Distribute evenly within the arc's angle range
+            // map idx 0..total to start..end
+            const step = (endAngle - startAngle) / (totalTools + 1);
+            const toolAngle = startAngle + step * (idx + 1);
+            return {
+                ...tool,
+                pos: pol2cart(orbitRadius, toolAngle, cx, cy),
+                angle: toolAngle
+            };
+        });
 
         return {
             cluster,
             pathData,
             nodePos,
             labelPos,
+            score,
+            arcOuter, // for connector start point
             currentAngle: midAngle,
-            score
+            satellites
         };
     });
 
@@ -95,7 +128,7 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
         <div
             ref={containerRef}
             className="w-full h-full relative radial-gradient-bg"
-            onClick={() => onClusterSelect(null)} // Click anywhere on background repalces the z-index div
+            onClick={() => onClusterSelect(null)}
         >
             <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
                 <defs>
@@ -106,7 +139,6 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                             <feMergeNode in="SourceGraphic" />
                         </feMerge>
                     </filter>
-                    {/* Heatmap Glow */}
                     <filter id="heatGlow" x="-50%" y="-50%" width="200%" height="200%">
                         <feGaussianBlur stdDeviation="6" result="coloredBlur" />
                         <feMerge>
@@ -116,134 +148,124 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                     </filter>
                 </defs>
 
-                {/* --- Background Rings --- */}
-                {[baseRadius * 0.6, baseRadius, baseRadius * 1.3].map((r, i) => (
+                {/* --- Background Topology (Rings) --- */}
+                {[baseRadius * 0.6, baseRadius, baseRadius * 1.35].map((r, i) => (
                     <circle
                         key={i}
                         cx={cx} cy={cy} r={r}
                         fill="none"
-                        stroke="rgba(255,255,255,0.06)"
+                        stroke="rgba(255,255,255,0.04)"
                         strokeDasharray="4 4"
                         className="pointer-events-none"
                     />
                 ))}
 
-                {/* --- Links (Core to Cluster) --- */}
+                {/* --- Synapses (Dynamic Connections) --- */}
                 {clusterElements.map((ce, i) => {
+                    // Only draw synapse if score > 0 (it's active)
+                    if (ce.score <= 0.05) return null;
+
                     const coreNode = corePositions[i % corePositions.length];
-                    const isDimmed = selectedClusterId && selectedClusterId !== ce.cluster.id;
-                    const opacity = Math.max(0.2, ce.score * 0.8) + (isDimmed ? 0 : 0.2); // Links glow slightly with score
+
+                    // Bezier Curve: Core -> Control -> ClusterNode
+                    // Control point pulls towards center-mid
+                    const cp1 = { x: (coreNode.x + ce.nodePos.x) / 2, y: (coreNode.y + ce.nodePos.y) / 2 };
 
                     return (
-                        <line
-                            key={`link-${i}`}
-                            x1={coreNode.x} y1={coreNode.y}
-                            x2={ce.nodePos.x} y2={ce.nodePos.y}
-                            stroke={`rgba(200, 205, 255, ${opacity})`}
-                            strokeWidth={1 + ce.score * 2} // Thicker links for high scores
-                            className={`transition-all duration-500 pointer-events-none ${isDimmed ? 'opacity-30' : ''}`}
-                        />
+                        <path
+                            key={`synapse-${i}`}
+                            d={`M ${coreNode.x} ${coreNode.y} Q ${cp1.x} ${cp1.y} ${ce.nodePos.x} ${ce.nodePos.y}`}
+                            fill="none"
+                            stroke={`rgba(157, 162, 255, ${0.2 + ce.score * 0.6})`}
+                            strokeWidth={0.5 + ce.score * 1.5}
+                            strokeDasharray={ce.score > 0.5 ? "4 2" : "none"} // Dash for high activity
+                            className="pointer-events-none transition-all duration-1000"
+                        >
+                            {ce.score > 0.5 && (
+                                <animate attributeName="stroke-dashoffset" from="100" to="0" dur="2s" repeatCount="indefinite" />
+                            )}
+                        </path>
                     );
                 })}
 
-                {/* --- Core Halo --- */}
-                <circle
-                    cx={cx} cy={cy} r={coreRadius * 0.6}
-                    fill="none"
-                    stroke="rgba(157,162,255,0.2)"
-                    strokeWidth="1"
-                    strokeDasharray="2 4"
-                    className="pointer-events-none"
-                />
-
-                {/* --- Core Nodes --- */}
+                {/* --- Core --- */}
+                <circle cx={cx} cy={cy} r={coreRadius * 0.6} fill="none" stroke="rgba(157,162,255,0.2)" strokeDasharray="2 4" className="pointer-events-none" />
                 {corePositions.map((pos) => (
                     <g key={pos.id} className="cursor-default pointer-events-none">
-                        <circle
-                            cx={pos.x} cy={pos.y} r={6}
-                            fill="#fff" fillOpacity="0.9"
-                            stroke="rgba(157,162,255,0.9)"
-                            strokeWidth="1.5"
-                        />
-                        <text
-                            x={pos.x + 10} y={pos.y + 4}
-                            fill="#d7dbff"
-                            fontSize="10"
-                            fontFamily="system-ui"
-                            className="pointer-events-none select-none"
-                        >
-                            {pos.label}
-                        </text>
+                        <circle cx={pos.x} cy={pos.y} r={6} fill="#fff" fillOpacity="0.9" stroke="rgba(157,162,255,0.9)" strokeWidth="1.5" />
+                        <text x={pos.x + 10} y={pos.y + 4} fill="#d7dbff" fontSize="10" className="pointer-events-none select-none">{pos.label}</text>
                     </g>
                 ))}
+                <text x={cx} y={cy + coreRadius * 0.8} textAnchor="middle" fill="#9da2ff" fontSize="11" className="opacity-70 pointer-events-none select-none">Núcleo de IA</text>
 
-                {/* --- Center Text --- */}
-                <text
-                    x={cx} y={cy + coreRadius * 0.8}
-                    textAnchor="middle"
-                    fill="#9da2ff"
-                    fontSize="11"
-                    className="opacity-70 pointer-events-none select-none"
-                >
-                    Núcleo de IA
-                </text>
-
-                {/* --- Cluster Arcs & Nodes --- */}
+                {/* --- Cluster Elements --- */}
                 {clusterElements.map((el) => {
                     const isSelected = selectedClusterId === el.cluster.id;
                     const isDimmed = selectedClusterId && !isSelected;
 
-                    // Visualization Logic based on Score
-                    // Base opacity increases with score (min 0.1, max 0.8)
-                    let fillOpacity = 0.08 + (el.score * 0.4);
-                    if (isSelected) fillOpacity = 0.3 + (el.score * 0.3);
-
-                    // If dimmed, reduce opacity but let high scores burn through slightly
-                    if (isDimmed) fillOpacity = fillOpacity * 0.4;
-
-                    const strokeWidth = (isSelected ? 3 : 1) + (el.score * 3);
-                    const strokeOpacity = 0.6 + (el.score * 0.4);
+                    // Style Logic
+                    const fillOpacity = isDimmed ? 0.1 : (0.1 + el.score * 0.5);
+                    const strokeWidth = (isSelected ? 2 : 1) + (el.score * 2);
 
                     return (
                         <g
                             key={el.cluster.id}
                             onClick={(e) => { e.stopPropagation(); onClusterSelect(el.cluster.id); }}
-                            className={`cursor-pointer transition-all duration-500 ${isDimmed ? 'grayscale-[0.5]' : ''}`}
-                            style={{ filter: el.score > 0.5 ? 'url(#heatGlow)' : 'none' }}
+                            className={`cursor-pointer transition-all duration-500 ${isDimmed ? 'opacity-40' : ''}`}
+                            style={{ filter: el.score > 0.4 ? 'url(#heatGlow)' : 'none' }}
                         >
-                            {/* Arc Shape */}
+                            {/* Arc */}
                             <path
                                 d={el.pathData}
                                 fill={el.cluster.color}
                                 fillOpacity={fillOpacity}
                                 stroke={el.cluster.color}
                                 strokeWidth={strokeWidth}
-                                strokeOpacity={strokeOpacity}
-                                className="transition-all duration-500 ease-out hover:fill-opacity-30"
+                                strokeOpacity={0.5 + el.score * 0.5}
+                                className="transition-all duration-700 ease-out"
                             />
 
-                            {/* Node Circle */}
+                            {/* Center Node */}
                             <circle
                                 cx={el.nodePos.x} cy={el.nodePos.y}
-                                r={(isSelected ? 8 : 5) + (el.score * 5)} // Grow node with score
-                                fill={el.score > 0.7 ? '#fff' : el.cluster.color} // Hot nodes turn white/hot
-                                stroke={el.score > 0.7 ? el.cluster.color : "#02030a"}
-                                strokeWidth="1.5"
+                                r={(isSelected ? 6 : 4) + (el.score * 4)}
+                                fill={el.score > 0.6 ? '#fff' : el.cluster.color}
+                                stroke={el.cluster.color}
+                                strokeWidth="1"
                                 className="transition-all duration-500"
                             />
 
                             {/* Label */}
                             <text
                                 x={el.labelPos.x} y={el.labelPos.y}
-                                fill={el.score > 0.6 ? "#fff" : "#f1f3ff"}
+                                fill={el.score > 0.6 ? "#fff" : "#aeb4d1"}
                                 fontWeight={el.score > 0.6 ? "bold" : "normal"}
-                                fontSize="11"
+                                fontSize={isSelected ? "13" : "11"}
                                 textAnchor={el.labelPos.x >= cx ? "start" : "end"}
                                 alignmentBaseline="middle"
-                                className="select-none drop-shadow-md transition-all duration-500"
+                                className="select-none transition-all duration-500"
                             >
                                 {el.cluster.label} {el.score > 0.1 && "★"}
                             </text>
+
+                            {/* --- SATELLITE NODES (Tools) --- */}
+                            {/* Only show satellites if selected OR high score */}
+                            {(isSelected || el.score > 0.2) && (
+                                <g className="satellites animate-fadeIn">
+                                    {el.satellites.map((tool, idx) => (
+                                        <circle
+                                            key={`sat-${idx}`}
+                                            cx={tool.pos.x} cy={tool.pos.y}
+                                            r={tool.isCustom ? 2.5 : 2} // Custom tools slightly larger
+                                            fill={tool.isCustom ? "#fff" : el.cluster.color}
+                                            fillOpacity={0.8}
+                                            className="transition-all duration-500 hover:r-4"
+                                        >
+                                            <title>{tool.name} {tool.isCustom ? "(Custom)" : ""}</title>
+                                        </circle>
+                                    ))}
+                                </g>
+                            )}
                         </g>
                     );
                 })}
