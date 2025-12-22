@@ -164,31 +164,40 @@ window.ManifoldDB = {
         }
     },
 
-    // Get ontology with offline fallback
+    // Get ontology once (legacy/fallback)
     getOntology: async function () {
-        // ALWAYS fallback to local if something fails or is loading
         const localClusters = window.ManifoldData ? window.ManifoldData.clusters : [];
-
         if (!this.db) return localClusters;
-
         try {
-            // Try network fetch
-            // Check internet connection implicitly via Firestore
             const snapshot = await this.db.collection('ontology').get();
-
-            if (snapshot.empty) {
-                console.log("No cloud ontology found. Using local.");
-                return localClusters;
-            }
-
-            const cloudClusters = snapshot.docs.map(doc => doc.data());
-
-            // Simple sort by ID to maintain some order, or add an 'order' field later
-            // For now, map to order of localClusters if possible, otherwise just return
-            return cloudClusters;
+            if (snapshot.empty) return localClusters;
+            return snapshot.docs.map(doc => doc.data());
         } catch (e) {
-            console.warn("Could not fetch cloud ontology (offline?), using local fallback.", e);
             return localClusters;
         }
+    },
+
+    // Real-time Ontology Subscription
+    subscribeToOntology: function (cb) {
+        const localClusters = window.ManifoldData ? window.ManifoldData.clusters : [];
+        if (!this.db) {
+            cb(localClusters);
+            return () => { }; // No-op unsubscribe
+        }
+
+        // Listen for updates
+        return this.db.collection('ontology').onSnapshot(snapshot => {
+            if (snapshot.empty) {
+                cb(localClusters);
+            } else {
+                const cloudClusters = snapshot.docs.map(doc => doc.data());
+                cb(cloudClusters);
+            }
+        }, error => {
+            console.warn("Ontology Sync Error (Offline?):", error);
+            // On error (offline), keep showing what we have or fallback? 
+            // Better not to override if we already had data.
+            // cb(localClusters); 
+        });
     }
 };

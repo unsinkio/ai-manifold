@@ -30,14 +30,26 @@ window.App = function App() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [coreTools, setCoreTools] = useState([]); // Dynamic Core Nodes
     const [toast, setToast] = useState({ message: null, type: 'info' });
+    const [lang, setLang] = useState(window.ManifoldI18n ? window.ManifoldI18n.currentLang : 'es');
 
-    // Toast Event Listener
+    // Access i18n helper
+    const t = (k) => window.ManifoldI18n ? window.ManifoldI18n.t(k) : k;
+    const td = (o) => window.ManifoldI18n ? window.ManifoldI18n.translateData(o) : o;
+
+    // Toast & Lang Event Listener
     useEffect(() => {
         const handleToast = (e) => {
             setToast({ message: e.detail.message, type: e.detail.type || 'info' });
         };
+        const handleLangChange = (e) => {
+            setLang(e.detail);
+        };
         window.addEventListener('manifold-toast', handleToast);
-        return () => window.removeEventListener('manifold-toast', handleToast);
+        window.addEventListener('manifold-lang-change', handleLangChange);
+        return () => {
+            window.removeEventListener('manifold-toast', handleToast);
+            window.removeEventListener('manifold-lang-change', handleLangChange);
+        };
     }, []);
 
     // Helper to trigger toast
@@ -60,7 +72,7 @@ window.App = function App() {
         });
 
         // Listen for auth state
-        const unsubscribe = Auth.onAuthStateChanged(async (u) => {
+        const unsubscribeAuth = Auth.onAuthStateChanged(async (u) => {
             setUser(u);
             setAuthInitialized(true);
 
@@ -135,7 +147,10 @@ window.App = function App() {
             setClusterScores(scores);
         }
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeOntology) unsubscribeOntology();
+        };
     }, [refreshTrigger, view]);
 
     // --- CORE TOOLS LOGIC ---
@@ -261,22 +276,30 @@ window.App = function App() {
             <header className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0a0f1e] z-10">
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#5b8def] to-[#9da2ff] shadow-[0_0_15px_rgba(91,141,239,0.5)]"></div>
-                    <span className="text-xl font-bold tracking-tight">AI MANIFOLD</span>
+                    <span className="text-xl font-bold tracking-tight">{t("app.title")}</span>
                 </div>
                 <div className="flex items-center gap-6">
+                    {/* Lang Toggle */}
+                    <button
+                        onClick={() => window.ManifoldI18n.setLanguage(lang === 'es' ? 'en' : 'es')}
+                        className="text-xs font-mono bg-white/5 px-2 py-1 rounded border border-white/10 hover:bg-white/10"
+                    >
+                        {lang.toUpperCase()}
+                    </button>
+
                     <nav className="flex gap-4 text-sm font-medium text-gray-400">
-                        <button onClick={() => setView('map')} className={`hover:text-white transition-colors ${view === 'map' ? 'text-white' : ''}`}>Mapa</button>
+                        <button onClick={() => setView('map')} className={`hover:text-white transition-colors ${view === 'map' ? 'text-white' : ''}`}>{t("nav.map")}</button>
                         <button onClick={() => setView('profile')} className={`hover:text-white transition-colors ${view === 'profile' ? 'text-white' : ''}`}>
                             {user ? (
                                 <span className="flex items-center gap-2">
                                     {user.photoURL && <img src={user.photoURL} className="w-6 h-6 rounded-full" />}
                                     {profileName}
                                 </span>
-                            ) : "Mi Perfil"}
+                            ) : t("nav.profile")}
                         </button>
                     </nav>
                     {user && (
-                        <button onClick={() => Auth.signOut()} className="text-xs text-red-400 hover:text-red-300">Salir</button>
+                        <button onClick={() => Auth.signOut()} className="text-xs text-red-400 hover:text-red-300">{t("nav.logout")}</button>
                     )}
                 </div>
             </header>
@@ -297,6 +320,7 @@ window.App = function App() {
                                 selectedClusterId={selectedClusterId}
                                 clusterScores={clusterScores}
                                 userCoreNodes={coreTools.length > 0 ? coreTools : null}
+                                lang={lang}
                             />
                         </div>
 
@@ -308,21 +332,21 @@ window.App = function App() {
                                         onClick={() => setSelectedClusterId(null)}
                                         className="mb-4 text-sm text-gray-400 hover:text-white flex items-center gap-2"
                                     >
-                                        ← Volver al Mapa
+                                        {t("sidebar.back")}
                                     </button>
 
                                     <div className="mb-6">
-                                        <h2 className="text-2xl font-bold mb-2" style={{ color: displayData.color }}>{displayData.label}</h2>
-                                        <p className="text-sm text-gray-300 leading-relaxed mb-4">{displayData.description}</p>
+                                        <h2 className="text-2xl font-bold mb-2" style={{ color: displayData.color }}>{td(displayData.label)}</h2>
+                                        <p className="text-sm text-gray-300 leading-relaxed mb-4">{td(displayData.description)}</p>
                                         <div className="text-xs font-mono text-gray-500 bg-black/20 p-3 rounded border border-white/5">
-                                            <span className="block mb-1 text-gray-400">GEODESICA TIPICA:</span>
-                                            {displayData.geodesic}
+                                            <span className="block mb-1 text-gray-400">{t("sidebar.geodesic")}</span>
+                                            {td(displayData.geodesic)}
                                         </div>
                                     </div>
 
                                     <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider sticky top-0 bg-[#0f172a] py-2 z-10">
-                                            Herramientas Recomendadas
+                                            {t("sidebar.recommended")}
                                         </h3>
                                         {displayData.tools.map((tool, idx) => (
                                             <div
@@ -334,12 +358,12 @@ window.App = function App() {
                                                     <h4 className="font-bold text-white group-hover:text-[#9da2ff] transition-colors">{tool.name}</h4>
                                                     {tool.score !== undefined && (
                                                         <span className="text-xs font-bold text-[#9da2ff] bg-[#9da2ff]/10 px-2 py-0.5 rounded">
-                                                            {Math.round(tool.score)}% Fit
+                                                            {Math.round(tool.score)}% {t("sidebar.fit")}
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-gray-400 line-clamp-2">{tool.description}</p>
-                                                {tool.isCustom && <span className="absolute bottom-1 right-2 text-[10px] text-gray-500">Añadida por ti</span>}
+                                                <p className="text-xs text-gray-400 line-clamp-2">{td(tool.description)}</p>
+                                                {tool.isCustom && <span className="absolute bottom-1 right-2 text-[10px] text-gray-500">{t("sidebar.custom_badge")}</span>}
                                             </div>
                                         ))}
                                     </div>
@@ -351,7 +375,7 @@ window.App = function App() {
                                                 onClick={handleAddToolStart}
                                                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1a2440] hover:bg-[#253259] border border-dashed border-gray-600 hover:border-[#9da2ff] text-gray-400 hover:text-white rounded-lg transition-all text-sm font-medium"
                                             >
-                                                <span>+</span> Agregar Herramienta a este Sector
+                                                <span>+</span> {t("sidebar.add")}
                                             </button>
                                         </div>
                                     )}

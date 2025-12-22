@@ -12,7 +12,7 @@ function pol2cart(r, angleRad, cx, cy) {
 
 // Assign component to window
 // Assign component to window
-window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null }) {
+window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null, lang = 'es' }) {
     const containerRef = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
@@ -271,7 +271,7 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                                 alignmentBaseline="middle"
                                 className="select-none transition-all duration-500"
                             >
-                                {el.cluster.label} {el.score > 0.1 && "★"}
+                                {window.ManifoldI18n.translateData(el.cluster.label)} {el.score > 0.1 && "★"}
                             </text>
 
                             {/* --- SATELLITE NODES (Tools) --- */}
