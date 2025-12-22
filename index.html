@@ -120,16 +120,22 @@
 
     <!-- LOAD SCRIPTS SEQUENTIALLY (ORDER MATTERS) -->
 
-    <!-- 1. Data -->
-    <script src="./src/data/clusters.js"></script>
-    <script src="./src/data/coreNodes.js"></script>
+    <!-- Data -->
+    <script src="src/data/clusters.js"></script>
+    <script src="src/data/coreNodes.js"></script>
 
-    <!-- 2. Components (JSX needs text/babel) -->
-    <script type="text/babel" src="./src/components/RadialMap.js"></script>
-    <script type="text/babel" src="./src/App.js"></script>
+    <!-- Services & Logic -->
+    <script src="src/services/storage.js"></script>
+    <script src="src/logic/clustering.js"></script>
 
-    <!-- 3. Entry Point -->
-    <script type="text/babel" src="./src/main.js"></script>
+    <!-- Components -->
+    <script type="text/babel" src="src/components/RadialMap.js"></script>
+    <script type="text/babel" src="src/components/UserProfile.js"></script>
+    <script type="text/babel" src="src/components/ToolEvaluator.js"></script>
+    <script type="text/babel" src="src/App.js"></script>
+
+    <!-- Entry Point -->
+    <script type="text/babel" src="src/main.js"></script>
 </body>
 
 </html>

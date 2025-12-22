@@ -11,7 +11,7 @@ function pol2cart(r, angleRad, cx, cy) {
 }
 
 // Assign component to window
-window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId }) {
+window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {} }) {
     const containerRef = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
@@ -78,12 +78,16 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId }) {
         // Calculate label position slightly outside
         const labelPos = pol2cart(arcOuter + 20, midAngle, cx, cy);
 
+        // Score logic
+        const score = clusterScores[cluster.id] || 0; // 0 to 1
+
         return {
             cluster,
             pathData,
             nodePos,
             labelPos,
-            currentAngle: midAngle
+            currentAngle: midAngle,
+            score
         };
     });
 
@@ -97,6 +101,14 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId }) {
                 <defs>
                     <filter id="glow">
                         <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+                        <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    {/* Heatmap Glow */}
+                    <filter id="heatGlow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="6" result="coloredBlur" />
                         <feMerge>
                             <feMergeNode in="coloredBlur" />
                             <feMergeNode in="SourceGraphic" />
@@ -120,14 +132,16 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId }) {
                 {clusterElements.map((ce, i) => {
                     const coreNode = corePositions[i % corePositions.length];
                     const isDimmed = selectedClusterId && selectedClusterId !== ce.cluster.id;
+                    const opacity = Math.max(0.2, ce.score * 0.8) + (isDimmed ? 0 : 0.2); // Links glow slightly with score
+
                     return (
                         <line
                             key={`link-${i}`}
                             x1={coreNode.x} y1={coreNode.y}
                             x2={ce.nodePos.x} y2={ce.nodePos.y}
-                            stroke="rgba(200, 205, 255, 0.2)"
-                            strokeWidth="1"
-                            className={`transition-opacity duration-300 pointer-events-none ${isDimmed ? 'opacity-30' : 'opacity-100'}`}
+                            stroke={`rgba(200, 205, 255, ${opacity})`}
+                            strokeWidth={1 + ce.score * 2} // Thicker links for high scores
+                            className={`transition-all duration-500 pointer-events-none ${isDimmed ? 'opacity-30' : ''}`}
                         />
                     );
                 })}
@@ -179,44 +193,56 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId }) {
                     const isSelected = selectedClusterId === el.cluster.id;
                     const isDimmed = selectedClusterId && !isSelected;
 
-                    // Increased opacity from 10 to 40 for better visibility
+                    // Visualization Logic based on Score
+                    // Base opacity increases with score (min 0.1, max 0.8)
+                    let fillOpacity = 0.08 + (el.score * 0.4);
+                    if (isSelected) fillOpacity = 0.3 + (el.score * 0.3);
+
+                    // If dimmed, reduce opacity but let high scores burn through slightly
+                    if (isDimmed) fillOpacity = fillOpacity * 0.4;
+
+                    const strokeWidth = (isSelected ? 3 : 1) + (el.score * 3);
+                    const strokeOpacity = 0.6 + (el.score * 0.4);
+
                     return (
                         <g
                             key={el.cluster.id}
                             onClick={(e) => { e.stopPropagation(); onClusterSelect(el.cluster.id); }}
-                            className={`cursor-pointer transition-all duration-300 ${isDimmed ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}
+                            className={`cursor-pointer transition-all duration-500 ${isDimmed ? 'grayscale-[0.5]' : ''}`}
+                            style={{ filter: el.score > 0.5 ? 'url(#heatGlow)' : 'none' }}
                         >
                             {/* Arc Shape */}
                             <path
                                 d={el.pathData}
                                 fill={el.cluster.color}
-                                fillOpacity={isSelected ? 0.2 : 0.08}
+                                fillOpacity={fillOpacity}
                                 stroke={el.cluster.color}
-                                strokeWidth={isSelected ? 3 : 2}
-                                strokeOpacity={0.6}
-                                className="transition-all duration-300 ease-out hover:fill-opacity-20"
+                                strokeWidth={strokeWidth}
+                                strokeOpacity={strokeOpacity}
+                                className="transition-all duration-500 ease-out hover:fill-opacity-30"
                             />
 
                             {/* Node Circle */}
                             <circle
                                 cx={el.nodePos.x} cy={el.nodePos.y}
-                                r={isSelected ? 8 : 5}
-                                fill={el.cluster.color}
-                                stroke="#02030a"
+                                r={(isSelected ? 8 : 5) + (el.score * 5)} // Grow node with score
+                                fill={el.score > 0.7 ? '#fff' : el.cluster.color} // Hot nodes turn white/hot
+                                stroke={el.score > 0.7 ? el.cluster.color : "#02030a"}
                                 strokeWidth="1.5"
-                                className="transition-all duration-300"
+                                className="transition-all duration-500"
                             />
 
                             {/* Label */}
                             <text
                                 x={el.labelPos.x} y={el.labelPos.y}
-                                fill="#f1f3ff"
+                                fill={el.score > 0.6 ? "#fff" : "#f1f3ff"}
+                                fontWeight={el.score > 0.6 ? "bold" : "normal"}
                                 fontSize="11"
                                 textAnchor={el.labelPos.x >= cx ? "start" : "end"}
                                 alignmentBaseline="middle"
-                                className="select-none font-medium drop-shadow-md"
+                                className="select-none drop-shadow-md transition-all duration-500"
                             >
-                                {el.cluster.label}
+                                {el.cluster.label} {el.score > 0.1 && "★"}
                             </text>
                         </g>
                     );
