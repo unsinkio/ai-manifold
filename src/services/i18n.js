@@ -7,6 +7,7 @@ window.ManifoldI18n = {
             // Header
             "app.title": "AI MANIFOLD",
             "nav.map": "Mapa",
+            "nav.search": "Buscar",
             "nav.profile": "Mi Perfil",
             "nav.logout": "Salir",
             "nav.guest": "Invitado",
@@ -25,7 +26,13 @@ window.ManifoldI18n = {
             "profile.save": "Guardar Perfil",
             "profile.p1": "Elige tu sector principal",
             "profile.p2": "Describe tu puesto (ej. Profesor, Desarrollador)",
+            "profile.p2": "Describe tu puesto (ej. Profesor, Desarrollador)",
             "profile.p3": "¿Qué haces día a día? (ej. Calificar, Programar)",
+            "profile.select_sector": "Selecciona tu sector...",
+            "profile.other": "Otro",
+            "profile.role_ph": "Soy diseñador UX y mis tareas principales son...",
+            "profile.tasks_ph": "Redacción, Análisis de Datos, Coding...",
+            "profile.saving": "Guardando...",
 
             // Sidebar
             "sidebar.back": "← Volver al Mapa",
@@ -63,6 +70,7 @@ window.ManifoldI18n = {
             // Header
             "app.title": "AI MANIFOLD",
             "nav.map": "Map",
+            "nav.search": "Search",
             "nav.profile": "My Profile",
             "nav.logout": "Logout",
             "nav.guest": "Guest",
@@ -81,7 +89,13 @@ window.ManifoldI18n = {
             "profile.save": "Save Profile",
             "profile.p1": "Choose your main sector",
             "profile.p2": "Describe your role (e.g., Professor, Developer)",
+            "profile.p2": "Describe your role (e.g., Professor, Developer)",
             "profile.p3": "What do you do daily? (e.g., Grading, Coding)",
+            "profile.select_sector": "Select your sector...",
+            "profile.other": "Other",
+            "profile.role_ph": "I am a UX Designer and my main tasks are...",
+            "profile.tasks_ph": "Writing, Data Analysis, Coding...",
+            "profile.saving": "Saving...",
 
             // Sidebar
             "sidebar.back": "← Back to Map",

@@ -31,6 +31,7 @@ window.App = function App() {
     const [coreTools, setCoreTools] = useState([]); // Dynamic Core Nodes
     const [toast, setToast] = useState({ message: null, type: 'info' });
     const [lang, setLang] = useState(window.ManifoldI18n ? window.ManifoldI18n.currentLang : 'es');
+    const [searchTerm, setSearchTerm] = useState("");
 
     // Access i18n helper
     const t = (k) => window.ManifoldI18n ? window.ManifoldI18n.t(k) : k;
@@ -129,6 +130,12 @@ window.App = function App() {
                 } catch (e) {
                     console.error("Failed to load user data", e);
                 }
+            } else {
+                // LOGOUT / NO SESSION
+                setShowLogin(true);
+                setProfileName("Usuario");
+                setCustomTools([]);
+                setCoreTools([]);
             }
         });
 
@@ -143,8 +150,12 @@ window.App = function App() {
         // Load local profile data (Fallback / Cache)
         if (LocalStorage) {
             const p = LocalStorage.getProfile();
-            // Fallback for profile name if not logged in
-            if (!user && p.sector) setProfileName(p.sector);
+            // Update profile display name from local cache (Responsive to "Save")
+            if (p.sector) {
+                setProfileName(p.sector);
+            } else if (user) {
+                setProfileName(user.displayName || "Usuario");
+            }
 
             const scores = {};
             clusters.forEach(c => {
@@ -280,6 +291,18 @@ window.App = function App() {
                     <span className="text-xl font-bold tracking-tight">{t("app.title")}</span>
                 </div>
                 <div className="flex items-center gap-6">
+                    {/* Search Bar */}
+                    <div className="relative group w-32 focus-within:w-64 transition-all duration-300">
+                        <input
+                            type="text"
+                            placeholder={t("nav.search") || "Buscar..."}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-full py-1 px-4 text-sm focus:outline-none focus:border-[#9da2ff] focus:bg-white/10 transition-all"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs">🔍</span>
+                    </div>
+
                     {/* Lang Toggle */}
                     <button
                         onClick={() => window.ManifoldI18n.setLanguage(lang === 'es' ? 'en' : 'es')}
@@ -322,11 +345,12 @@ window.App = function App() {
                                 clusterScores={clusterScores}
                                 userCoreNodes={coreTools.length > 0 ? coreTools : null}
                                 lang={lang}
+                                searchTerm={searchTerm}
                             />
                         </div>
 
                         {/* Sidebar */}
-                        <div className={`w-96 bg-[#0f172a]/95 backdrop-blur-md border-l border-white/10 p-6 flex flex-col transition-all duration-300 absolute right-0 top-0 bottom-0 shadow-2xl ${selectedClusterId ? 'translate-x-0' : 'translate-x-full'}`}>
+                        <div className={`w-full md:w-96 bg-[#0f172a]/95 backdrop-blur-md border-l border-white/10 p-6 flex flex-col transition-all duration-300 absolute right-0 top-0 bottom-0 shadow-2xl z-50 ${selectedClusterId ? 'translate-x-0' : 'translate-x-full'}`}>
                             {selectedClusterId && displayData && (
                                 <>
                                     <button

@@ -11,24 +11,28 @@ function pol2cart(r, angleRad, cx, cy) {
 }
 
 // Assign component to window
-// Assign component to window
-window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null, lang = 'es' }) {
+window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null, lang = 'es', searchTerm = '' }) {
     const containerRef = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+    const [hoveredToolId, setHoveredToolId] = useState(null); // Add hover state
 
-    // Responsive logic
+    // Responsive logic with ResizeObserver for robust init
     useEffect(() => {
-        const handleResize = () => {
-            if (containerRef.current) {
-                setDimensions({
-                    width: containerRef.current.clientWidth,
-                    height: containerRef.current.clientHeight
-                });
+        if (!containerRef.current) return;
+
+        const observer = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                const { width, height } = entry.contentRect;
+                // Only update if dimensions actually changed and are positive
+                if (width > 0 && height > 0) {
+                    setDimensions({ width, height });
+                }
             }
-        };
-        window.addEventListener('resize', handleResize);
-        handleResize();
-        return () => window.removeEventListener('resize', handleResize);
+        });
+
+        observer.observe(containerRef.current);
+
+        return () => observer.disconnect();
     }, []);
 
     const { width, height } = dimensions;
@@ -96,15 +100,24 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
         const clusterCustomTools = customTools.filter(t => t.sectorId === cluster.id);
         const allTools = [...(cluster.tools || []), ...clusterCustomTools];
 
+        // Search Filtering Logic
+        const toolsWithMatch = allTools.map(t => {
+            const match = searchTerm && t.name.toLowerCase().includes(searchTerm.toLowerCase());
+            return { ...t, isMatch: match };
+        });
+        const hasSearchMatch = toolsWithMatch.some(t => t.isMatch);
+
+
         // Distribute tools along an orbit just outside the cluster
         const orbitRadius = arcOuter + 10;
         const totalTools = allTools.length;
 
-        const satellites = allTools.map((tool, idx) => {
+        const satellites = toolsWithMatch.map((tool, idx) => {
             // Distribute evenly within the arc's angle range
             // map idx 0..total to start..end
             const step = (endAngle - startAngle) / (totalTools + 1);
             const toolAngle = startAngle + step * (idx + 1);
+
             return {
                 ...tool,
                 pos: pol2cart(orbitRadius, toolAngle, cx, cy),
@@ -120,7 +133,8 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
             score,
             arcOuter, // for connector start point
             currentAngle: midAngle,
-            satellites
+            satellites,
+            hasSearchMatch
         };
     });
 
@@ -233,11 +247,16 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                     const fillOpacity = isDimmed ? 0.1 : (0.1 + el.score * 0.5);
                     const strokeWidth = (isSelected ? 2 : 1) + (el.score * 2);
 
+                    // Search Visibility Logic
+                    // If matched, ensure it's not fully dimmed even if another is selected? 
+                    // Or prioritize search.
+                    const isSearchRelevant = searchTerm !== "" && el.hasSearchMatch;
+
                     return (
                         <g
                             key={el.cluster.id}
                             onClick={(e) => { e.stopPropagation(); onClusterSelect(el.cluster.id); }}
-                            className={`cursor-pointer transition-all duration-500 ${isDimmed ? 'opacity-40' : ''}`}
+                            className={`cursor-pointer transition-all duration-500 ${(isDimmed && !isSearchRelevant) ? 'opacity-40' : ''}`}
                             style={{ filter: el.score > 0.4 ? 'url(#heatGlow)' : 'none' }}
                         >
                             {/* Arc */}
@@ -275,21 +294,44 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                             </text>
 
                             {/* --- SATELLITE NODES (Tools) --- */}
-                            {/* Only show satellites if selected OR high score */}
-                            {(isSelected || el.score > 0.2) && (
+                            {/* Show satellites if selected OR high score OR search active for this cluster */}
+                            {(isSelected || el.score > 0.2 || (searchTerm !== "" && el.hasSearchMatch)) && (
                                 <g className="satellites animate-fadeIn">
-                                    {el.satellites.map((tool, idx) => (
-                                        <circle
-                                            key={`sat-${idx}`}
-                                            cx={tool.pos.x} cy={tool.pos.y}
-                                            r={tool.isCustom ? 2.5 : 2} // Custom tools slightly larger
-                                            fill={tool.isCustom ? "#fff" : el.cluster.color}
-                                            fillOpacity={0.8}
-                                            className="transition-all duration-500 hover:r-4"
-                                        >
-                                            <title>{tool.name} {tool.isCustom ? "(Custom)" : ""}</title>
-                                        </circle>
-                                    ))}
+                                    {el.satellites.map((tool, idx) => {
+                                        const isMatch = tool.isMatch;
+                                        const isFadedBySearch = searchTerm !== "" && !isMatch;
+                                        const isHovered = hoveredToolId === tool.name;
+
+                                        return (
+                                            <g key={`sat-${idx}`}
+                                                onMouseEnter={() => setHoveredToolId(tool.name)}
+                                                onMouseLeave={() => setHoveredToolId(null)}>
+                                                <circle
+                                                    cx={tool.pos.x} cy={tool.pos.y}
+                                                    r={tool.isCustom ? 3 : 2.2}
+                                                    fill={tool.isCustom ? "#fff" : el.cluster.color}
+                                                    fillOpacity={isFadedBySearch ? 0.2 : 0.9}
+                                                    stroke={isMatch ? "#fff" : "none"}
+                                                    strokeWidth={isMatch ? 1.5 : 0}
+                                                    className="transition-all duration-300 hover:r-4 hover:fill-white"
+                                                />
+                                                {/* Tool Label on Hover or Match */}
+                                                {(isHovered || isMatch) && (
+                                                    <text
+                                                        x={tool.pos.x}
+                                                        y={tool.pos.y - 8}
+                                                        textAnchor="middle"
+                                                        fill="white"
+                                                        fontSize="10"
+                                                        className="pointer-events-none select-none bg-black"
+                                                        style={{ textShadow: '0 1px 2px black' }}
+                                                    >
+                                                        {tool.name}
+                                                    </text>
+                                                )}
+                                            </g>
+                                        );
+                                    })}
                                 </g>
                             )}
                         </g>
