@@ -112,3 +112,9 @@ Creative Commons Attribution–NonCommercial–ShareAlike 4.0 International Lice
 
 You are free to use, share, and adapt this work for non-commercial purposes,
 provided that attribution is given and derivative works are shared under the same license.
+
+
+This license applies to the map, its structure, and its representations.
+Individual AI tools referenced remain the property of their respective owners.
+
+
