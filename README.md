@@ -26,3 +26,8 @@ This project values:
 ## Contributions
 Contributions are welcome, but guided.
 See CONTRIBUTING.md.
+
+## License
+This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+
+See [LICENSE.md](LICENSE.md) for details.
