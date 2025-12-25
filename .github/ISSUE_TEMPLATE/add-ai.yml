@@ -1,0 +1,16 @@
+name: Propose a new AI / Tool
+description: Suggest a new AI tool to be considered in the map
+body:
+  - type: textarea
+    attributes:
+      label: Context of use
+      description: In what professional or cognitive context is this tool relevant?
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Why this improves navigation
+      description: How does adding this tool help orientation rather than ranking?
+    validations:
+      required: true
