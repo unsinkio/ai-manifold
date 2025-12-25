@@ -13,11 +13,11 @@ window.ManifoldData.clusters = [
             en: "Content → Skills → Activities → Assessment → Continuous Improvement."
         },
         tools: [
-            { id: "notion", name: "Notion AI", description: { es: "Syllabus, documentación y plantillas de curso.", en: "Syllabus, documentation and course templates." } },
-            { name: "Cengage MindTap AI", description: { es: "Alineación de actividades con competencias.", en: "Activity alignment with skills." } },
-            { name: "Eduaide / Class Companion", description: { es: "Generación de actividades dentro del LMS.", en: "Activity generation within LMS." } },
-            { name: "Gradescope AI", description: { es: "Calificación asistida y feedback masivo.", en: "Assisted grading and mass feedback." } },
-            { name: "Microsoft Learning Accelerators", description: { es: "Apoyo en tiempo real a estudiantes.", en: "Real-time student support." } }
+            { id: "notion", name: "Notion AI", year: 2023, description: { es: "Syllabus, documentación y plantillas de curso.", en: "Syllabus, documentation and course templates." } },
+            { name: "Cengage MindTap AI", year: 2022, description: { es: "Alineación de actividades con competencias.", en: "Activity alignment with skills." } },
+            { name: "Eduaide / Class Companion", year: 2023, description: { es: "Generación de actividades dentro del LMS.", en: "Activity generation within LMS." } },
+            { name: "Gradescope AI", year: 2018, description: { es: "Calificación asistida y feedback masivo.", en: "Assisted grading and mass feedback." } },
+            { name: "Microsoft Learning Accelerators", year: 2022, description: { es: "Apoyo en tiempo real a estudiantes.", en: "Real-time student support." } }
         ]
     },
     {
@@ -33,12 +33,12 @@ window.ManifoldData.clusters = [
             en: "Notes → Actions → Meetings → Documents → Decisions."
         },
         tools: [
-            { id: "copilot", name: "Microsoft Copilot", description: { es: "IA en Outlook, Word, Excel, PowerPoint y Teams.", en: "AI in Outlook, Word, Excel, PowerPoint and Teams." } },
-            { id: "gemini", name: "Google Gemini Workspace", description: { es: "IA en Docs, Sheets, Gmail y Meet.", en: "AI in Docs, Sheets, Gmail and Meet." } },
-            { name: "Asana Intelligence", description: { es: "Estructura proyectos y detecta bloqueos.", en: "Structures projects and detects blockers." } },
-            { name: "Monday AI", description: { es: "Automation y asistencia en tableros de trabajo.", en: "Automation and assistance in work boards." } },
-            { id: "perplexity", name: "Perplexity Enterprise", description: { es: "Investigación aplicada a informes.", en: "Applied research for reports." } },
-            { id: "notion", name: "Notion AI", description: { es: "Repositorio vivo de procesos y decisiones.", en: "Living repository of processes and decisions." } }
+            { id: "copilot", name: "Microsoft Copilot", year: 2023, description: { es: "IA en Outlook, Word, Excel, PowerPoint y Teams.", en: "AI in Outlook, Word, Excel, PowerPoint and Teams." } },
+            { id: "gemini", name: "Google Gemini Workspace", year: 2023, description: { es: "IA en Docs, Sheets, Gmail y Meet.", en: "AI in Docs, Sheets, Gmail and Meet." } },
+            { name: "Asana Intelligence", year: 2023, description: { es: "Estructura proyectos y detecta bloqueos.", en: "Structures projects and detects blockers." } },
+            { name: "Monday AI", year: 2023, description: { es: "Automation y asistencia en tableros de trabajo.", en: "Automation and assistance in work boards." } },
+            { id: "perplexity", name: "Perplexity Enterprise", year: 2022, description: { es: "Investigación aplicada a informes.", en: "Applied research for reports." } },
+            { id: "notion", name: "Notion AI", year: 2023, description: { es: "Repositorio vivo de procesos y decisiones.", en: "Living repository of processes and decisions." } }
         ]
     },
     {
@@ -54,11 +54,11 @@ window.ManifoldData.clusters = [
             en: "Lead → Qualification → Nurture → Appointment → Closing."
         },
         tools: [
-            { name: "GoHighLevel AI", description: { es: "Flujos de nurturing y respuestas instantáneas.", en: "Nurturing flows and instant replies." } },
-            { name: "HubSpot AI Assist", description: { es: "Emails, secuencias y resumen de deals.", en: "Emails, sequences and deal summaries." } },
-            { name: "Zoho Zia", description: { es: "Análisis y predicciones dentro del CRM.", en: "Analysis and predictions within CRM." } },
-            { name: "ReChat / LocalizeOS", description: { es: "IA para agentes inmobiliarios (listings, comps).", en: "AI for agents (listings, comps)." } },
-            { name: "Fathom AI", description: { es: "Convierte llamadas en tareas concretas.", en: "Converts calls into concrete tasks." } }
+            { name: "GoHighLevel AI", year: 2023, description: { es: "Flujos de nurturing y respuestas instantáneas.", en: "Nurturing flows and instant replies." } },
+            { name: "HubSpot AI Assist", year: 2023, description: { es: "Emails, secuencias y resumen de deals.", en: "Emails, sequences and deal summaries." } },
+            { name: "Zoho Zia", year: 2023, description: { es: "Análisis y predicciones dentro del CRM.", en: "Analysis and predictions within CRM." } },
+            { name: "ReChat / LocalizeOS", year: 2022, description: { es: "IA para agentes inmobiliarios (listings, comps).", en: "AI for agents (listings, comps)." } },
+            { name: "Fathom AI", year: 2021, description: { es: "Convierte llamadas en tareas concretas.", en: "Converts calls into concrete tasks." } }
         ]
     },
     {
@@ -74,12 +74,12 @@ window.ManifoldData.clusters = [
             en: "Transaction → Calssification → Insight → Reconciliation → Decision."
         },
         tools: [
-            { name: "Excel Copilot", description: { es: "Análisis, fórmulas y reporting asistido.", en: "Analysis, formulas and assisted reporting." } },
-            { name: "Power BI Copilot", description: { es: "Ayuda con DAX y narrativas de datos.", en: "Help with DAX and data narratives." } },
-            { name: "QuickBooks AI", description: { es: "Clasificación y reconciliación de movimientos.", en: "Transaction classification and reconciliation." } },
-            { name: "Ramp IQ / Brex AI", description: { es: "Detección de gastos anómalos.", en: "Anomalous expense detection." } },
-            { name: "Glean AI", description: { es: "Optimización de cuentas por pagar/cobrar.", en: "AP/AR optimization." } },
-            { name: "Plaid Signal AI", description: { es: "Evaluación de riesgo de pago.", en: "Payment risk evaluation." } }
+            { name: "Excel Copilot", year: 2023, description: { es: "Análisis, fórmulas y reporting asistido.", en: "Analysis, formulas and assisted reporting." } },
+            { name: "Power BI Copilot", year: 2023, description: { es: "Ayuda con DAX y narrativas de datos.", en: "Help with DAX and data narratives." } },
+            { name: "QuickBooks AI", year: 2023, description: { es: "Clasificación y reconciliación de movimientos.", en: "Transaction classification and reconciliation." } },
+            { name: "Ramp IQ / Brex AI", year: 2022, description: { es: "Detección de gastos anómalos.", en: "Anomalous expense detection." } },
+            { name: "Glean AI", year: 2022, description: { es: "Optimización de cuentas por pagar/cobrar.", en: "AP/AR optimization." } },
+            { name: "Plaid Signal AI", year: 2021, description: { es: "Evaluación de riesgo de pago.", en: "Payment risk evaluation." } }
         ]
     },
     {
@@ -95,11 +95,11 @@ window.ManifoldData.clusters = [
             en: "Physiological Data → State → Alert → Intervention."
         },
         tools: [
-            { name: "Welltory", description: { es: "Interpretación de HRV, estrés y energía.", en: "HRV, stress and energy interpretation." } },
-            { name: "Integración Apple Watch", description: { es: "Captura de datos biométricos.", en: "Biometric data capture." } },
-            { name: "Nabla / DeepScribe / Augmedix", description: { es: "Notas clínicas desde voz.", en: "Clinical notes from voice." } },
-            { name: "Overjet", description: { es: "Análisis de radiografías dentales.", en: "Dental X-ray analysis." } },
-            { name: "Hippocratic AI", description: { es: "Monitoreo y banderas rojas clínicas.", en: "Monitoring and clinical red flags." } }
+            { name: "Welltory", year: 2019, description: { es: "Interpretación de HRV, estrés y energía.", en: "HRV, stress and energy interpretation." } },
+            { name: "Integración Apple Watch", year: 2018, description: { es: "Captura de datos biométricos.", en: "Biometric data capture." } },
+            { name: "Nabla / DeepScribe / Augmedix", year: 2023, description: { es: "Notas clínicas desde voz.", en: "Clinical notes from voice." } },
+            { name: "Overjet", year: 2021, description: { es: "Análisis de radiografías dentales.", en: "Dental X-ray analysis." } },
+            { name: "Hippocratic AI", year: 2023, description: { es: "Monitoreo y banderas rojas clínicas.", en: "Monitoring and clinical red flags." } }
         ]
     },
     {
@@ -115,10 +115,10 @@ window.ManifoldData.clusters = [
             en: "Question → Papers → Variable extraction → Synthesis → Model."
         },
         tools: [
-            { id: "perplexity", name: "Perplexity Pro", description: { es: "Preguntas complejas con citas confiables.", en: "Complex questions with reliable citations." } },
-            { name: "Elicit", description: { es: "Revisiones sistemáticas y extracción de datos.", en: "Systematic reviews and data extraction." } },
-            { name: "Wolfram + LLM", description: { es: "Cómputo simbólico y numérico avanzado.", en: "Symbolic and advanced numerical compute." } },
-            { name: "Scite AI", description: { es: "Contexto de citas: apoyo o contradicción.", en: "Citation context: supporting or contrasting." } }
+            { id: "perplexity", name: "Perplexity Pro", year: 2022, description: { es: "Preguntas complejas con citas confiables.", en: "Complex questions with reliable citations." } },
+            { name: "Elicit", year: 2022, description: { es: "Revisiones sistemáticas y extracción de datos.", en: "Systematic reviews and data extraction." } },
+            { name: "Wolfram + LLM", year: 2023, description: { es: "Cómputo simbólico y numérico avanzado.", en: "Symbolic and advanced numerical compute." } },
+            { name: "Scite AI", year: 2021, description: { es: "Contexto de citas: apoyo o contradicción.", en: "Citation context: supporting or contrasting." } }
         ]
     },
     {
@@ -134,12 +134,12 @@ window.ManifoldData.clusters = [
             en: "Error → Diagnosis → Fix → Deploy → Monitoring."
         },
         tools: [
-            { name: "GitHub Copilot Enterprise", description: { es: "Asistencia en el IDE y PRs.", en: "IDE and PR assistance." } },
-            { name: "JetBrains AI Assistant", description: { es: "Ayuda en entornos JetBrains.", en: "Help within JetBrains environments." } },
-            { name: "AWS Q", description: { es: "Consultoría de infra y scripts en AWS.", en: "Infra consultancy and AWS scripts." } },
-            { name: "GCP Gemini for Cloud", description: { es: "Asistencia en GCP.", en: "Assistance in GCP." } },
-            { name: "Datadog Bits AI", description: { es: "Análisis de logs y anomalías.", en: "Log and anomaly analysis." } },
-            { name: "Figma DevMode + IA", description: { es: "De diseño a especificación técnica.", en: "From design to specs." } }
+            { name: "GitHub Copilot Enterprise", year: 2023, description: { es: "Asistencia en el IDE y PRs.", en: "IDE and PR assistance." } },
+            { name: "JetBrains AI Assistant", year: 2023, description: { es: "Ayuda en entornos JetBrains.", en: "Help within JetBrains environments." } },
+            { name: "AWS Q", year: 2023, description: { es: "Consultoría de infra y scripts en AWS.", en: "Infra consultancy and AWS scripts." } },
+            { name: "GCP Gemini for Cloud", year: 2023, description: { es: "Asistencia en GCP.", en: "Assistance in GCP." } },
+            { name: "Datadog Bits AI", year: 2023, description: { es: "Análisis de logs y anomalías.", en: "Log and anomaly analysis." } },
+            { name: "Figma DevMode + IA", year: 2023, description: { es: "De diseño a especificación técnica.", en: "From design to specs." } }
         ]
     },
     {
@@ -155,12 +155,12 @@ window.ManifoldData.clusters = [
             en: "Idea → Prototype → Production → Publish."
         },
         tools: [
-            { name: "Figma AI", description: { es: "Wireframes, variaciones y diseño asistido.", en: "Wireframes, variations and assisted design." } },
-            { name: "Adobe Firefly / GenStudio", description: { es: "Imagen y video generativo.", en: "Generative image and video." } },
-            { name: "Runway ML", description: { es: "Video generativo y efectos avanzados.", en: "Generative video and advanced effects." } },
-            { name: "Descript AI", description: { es: "Edición de audio y video basada en texto.", en: "Text-based audio and video editing." } },
-            { name: "CapCut IA", description: { es: "Edición rápida para redes sociales.", en: "Fast editing for social media." } },
-            { name: "OpusClip", description: { es: "Clips cortos desde videos largos.", en: "Short clips from long videos." } }
+            { name: "Figma AI", year: 2024, description: { es: "Wireframes, variaciones y diseño asistido.", en: "Wireframes, variations and assisted design." } },
+            { name: "Adobe Firefly / GenStudio", year: 2023, description: { es: "Imagen y video generativo.", en: "Generative image and video." } },
+            { name: "Runway ML", year: 2023, description: { es: "Video generativo y efectos avanzados.", en: "Generative video and advanced effects." } },
+            { name: "Descript AI", year: 2020, description: { es: "Edición de audio y video basada en texto.", en: "Text-based audio and video editing." } },
+            { name: "CapCut IA", year: 2022, description: { es: "Edición rápida para redes sociales.", en: "Fast editing for social media." } },
+            { name: "OpusClip", year: 2023, description: { es: "Clips cortos desde videos largos.", en: "Short clips from long videos." } }
         ]
     }
 ];

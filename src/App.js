@@ -1,6 +1,7 @@
 const { useState, useEffect } = React;
 // Access globals
 const RadialMap = window.RadialMap;
+const Streamgraph = window.ManifoldStreamgraph;
 const UserProfile = window.UserProfile;
 const ToolEvaluator = window.ToolEvaluator;
 const ToolAdder = window.ToolAdder;
@@ -22,6 +23,7 @@ window.App = function App() {
     const [clusters, setClusters] = useState(clustersMock);
     const [view, setView] = useState('map');
     const [selectedClusterId, setSelectedClusterId] = useState(null);
+    const [showTimeline, setShowTimeline] = useState(false); // Constitution: Sector selection opens streamgraph
     const [evaluatingTool, setEvaluatingTool] = useState(null);
     const [addingTool, setAddingTool] = useState(false); // New state for ToolAdder
     const [customTools, setCustomTools] = useState([]); // Store user's custom tools
@@ -214,8 +216,14 @@ window.App = function App() {
     }, [refreshTrigger, customTools, user]); // Re-run when user interactions happen
 
     const handleClusterSelect = (clusterId) => {
+        if (clusterId === selectedClusterId) return; // Debounce if needed, or allow toggle?
         setSelectedClusterId(clusterId);
-        setView('map'); // Ensure we stay on map view but open sidebar
+        if (clusterId) {
+            setShowTimeline(true); // Constitution: Open Streamgraph on selection
+        } else {
+            setShowTimeline(false);
+        }
+        setView('map');
     };
 
     const handleEvaluateTool = (tool) => {
@@ -395,13 +403,37 @@ window.App = function App() {
 
                                     {/* ADD TOOL BUTTON */}
                                     {user && (
-                                        <div className="mt-4 pt-4 border-t border-white/10">
+                                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
                                             <button
                                                 onClick={handleAddToolStart}
                                                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1a2440] hover:bg-[#253259] border border-dashed border-gray-600 hover:border-[#9da2ff] text-gray-400 hover:text-white rounded-lg transition-all text-sm font-medium"
                                             >
                                                 <span>+</span> {t("sidebar.add")}
                                             </button>
+
+                                            {/* SMART SYNC: Only show if local data has more content than cloud */}
+                                            {(() => {
+                                                // Calculate Diff
+                                                const localClusters = window.ManifoldData ? window.ManifoldData.clusters : [];
+                                                const cloudClusters = clusters; // This is state, which comes from cloud subscription
+
+                                                const localToolCount = localClusters.reduce((acc, c) => acc + c.tools.length, 0);
+                                                const cloudToolCount = cloudClusters.reduce((acc, c) => acc + (c.tools ? c.tools.length : 0), 0);
+
+                                                // If we have more local tools than cloud, or cloud is empty, show sync
+                                                const needsSync = localToolCount > cloudToolCount;
+
+                                                if (!needsSync) return null;
+
+                                                return (
+                                                    <button
+                                                        onClick={() => DB.seedHistory()}
+                                                        className="w-full text-xs text-yellow-500 hover:text-yellow-400 py-2 border border-yellow-500/30 hover:border-yellow-500/60 rounded transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <span>⚠️</span> Sync Local Data to Cloud
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     )}
                                 </>
@@ -426,6 +458,14 @@ window.App = function App() {
                     sectorId={selectedClusterId}
                     onClose={() => setAddingTool(false)}
                     onAdd={handleAddToolConfirm}
+                />
+            )}
+
+            {/* Streamgraph Overlay (Constitutional View) */}
+            {showTimeline && selectedClusterId && (
+                <Streamgraph
+                    cluster={clusters.find(c => c.id === selectedClusterId)}
+                    onClose={() => setShowTimeline(false)}
                 />
             )}
 

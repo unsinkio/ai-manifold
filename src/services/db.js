@@ -136,31 +136,60 @@ window.ManifoldDB = {
         console.log("Migration completed successfully");
     },
     // --- Ontology (Cloud + Fallback) ---
-    // Seed local clusters.js data to Firestore (Admin / One-time)
-    seedOntology: async function () {
+    // --- Ontology Seeding (History Generation) ---
+    // Generates "simulation" data once and persists it to create a "Real History" record.
+    seedHistory: async function () {
         if (!this.db) return;
-        const clusters = window.ManifoldData ? window.ManifoldData.clusters : [];
-        if (clusters.length === 0) {
+        const localClusters = window.ManifoldData ? window.ManifoldData.clusters : [];
+        if (localClusters.length === 0) {
             console.error("No local clusters found to seed");
             return;
         }
 
+        console.log("Seeding history...");
         const batch = this.db.batch();
         const ontologyRef = this.db.collection('ontology');
+        const years = [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
 
-        clusters.forEach(cluster => {
+        localClusters.forEach(cluster => {
             const ref = ontologyRef.doc(cluster.id);
-            batch.set(ref, cluster);
+
+            // Enrich tools with history
+            const enrichedTools = cluster.tools.map(tool => {
+                const launchYear = tool.year || 2023;
+                const peak = 10 + (tool.name.length % 5) * 5; // Deterministic random peak
+
+                const history = years.map(year => {
+                    let value = 0;
+                    if (year >= launchYear) {
+                        // Simulation: Logistic Growth
+                        const age = year - launchYear;
+                        value = peak * (1 / (1 + Math.exp(-age + 2)));
+                    }
+                    return { year, value };
+                });
+
+                return { ...tool, history };
+            });
+
+            batch.set(ref, {
+                ...cluster,
+                tools: enrichedTools,
+                lastSeeded: firebase.firestore.FieldValue.serverTimestamp()
+            });
         });
 
         try {
             await batch.commit();
-            console.log("Ontology seeded successfully!");
+            console.log("History seeded successfully!");
             window.dispatchEvent(new CustomEvent('manifold-toast', {
-                detail: { message: "Ontología subida a la nube correctamente.", type: 'success' }
+                detail: { message: "Historia generada y guardada en Cloud.", type: 'success' }
             }));
         } catch (e) {
-            console.error("Error seeding ontology:", e);
+            console.error("Error seeding history:", e);
+            window.dispatchEvent(new CustomEvent('manifold-toast', {
+                detail: { message: "Error al guardar historia.", type: 'error' }
+            }));
         }
     },
 

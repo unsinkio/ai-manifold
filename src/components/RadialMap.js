@@ -108,22 +108,52 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
         const hasSearchMatch = toolsWithMatch.some(t => t.isMatch);
 
 
-        // Distribute tools along an orbit just outside the cluster
-        const orbitRadius = arcOuter + 10;
-        const totalTools = allTools.length;
+        // -- CONSTITUTIONAL ALIGNMENT --
+        // 1. Time as Radial Depth
+        // 2. Sectors as Fixed Angular Frames
 
+        const minYear = 2018;
+        const maxYear = 2025; // Future proofing
+        const yearSpan = maxYear - minYear;
+
+        // Map Year to Radius relative to baseRadius
+        const getYearRadius = (y) => {
+            // 2018 is near core, 2024 is outer
+            const normalize = Math.max(0, Math.min(1, (y - minYear) / yearSpan));
+            // Spread from 0.6 * baseRadius (core) to 1.6 * baseRadius
+            // This puts early tools near the core and new ones further out
+            return baseRadius * (0.7 + normalize * 0.9);
+        };
+
+        // Distribute tools constitutionally
+        const totalTools = toolsWithMatch.length;
         const satellites = toolsWithMatch.map((tool, idx) => {
-            // Distribute evenly within the arc's angle range
-            // map idx 0..total to start..end
-            const step = (endAngle - startAngle) / (totalTools + 1);
-            const toolAngle = startAngle + step * (idx + 1);
+            const year = tool.year || 2023; // Default to 2023 if missing
+            const r = getYearRadius(year);
+
+            // Angular distribution:
+            // Tools of the same sector share the wedge.
+            // We distribute them angularly based on their index to avoid overlap.
+            // But ideally, they should have a specific "sub-domain" angle. 
+            // For now, we spread them within 80% of the wedge.
+            const spread = 0.8;
+            const wedgeSize = endAngle - startAngle;
+            // Simple deterministic hash for position stability if index changes? 
+            // For now, using index is fine as list is static.
+            // Center them:
+            const relativeAngle = ((idx + 0.5) / totalTools - 0.5) * wedgeSize * spread;
+            const toolAngle = midAngle + relativeAngle;
 
             return {
                 ...tool,
-                pos: pol2cart(orbitRadius, toolAngle, cx, cy),
-                angle: toolAngle
+                pos: pol2cart(r, toolAngle, cx, cy),
+                angle: toolAngle,
+                r: r // Store radius for potential other uses
             };
         });
+
+        // Calculate arc for visual container (still relevant for sector identity)
+        // We keep the "scored" arc as the background "Plateau"
 
         return {
             cluster,
@@ -131,12 +161,19 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
             nodePos,
             labelPos,
             score,
-            arcOuter, // for connector start point
-            currentAngle: midAngle,
+            midAngle,
             satellites,
-            hasSearchMatch
+            hasSearchMatch,
+            getYearRadius // Pass helper if needed down (not needed here)
         };
     });
+
+    // Helper for Time Rings
+    const timeRings = [2018, 2020, 2022, 2024];
+    const minYear = 2018;
+    const maxYear = 2025;
+    const yearSpan = maxYear - minYear;
+    const getGlobalYearRadius = (y) => baseRadius * (0.7 + (Math.max(0, Math.min(1, (y - minYear) / yearSpan)) * 0.9));
 
     return (
         <div
@@ -163,16 +200,31 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                 </defs>
 
                 {/* --- Background Topology (Rings) --- */}
-                {[baseRadius * 0.6, baseRadius, baseRadius * 1.35].map((r, i) => (
-                    <circle
-                        key={i}
-                        cx={cx} cy={cy} r={r}
-                        fill="none"
-                        stroke="rgba(255,255,255,0.04)"
-                        strokeDasharray="4 4"
-                        className="pointer-events-none"
-                    />
-                ))}
+                {/* --- Background Topology (Time Rings) --- */}
+                {timeRings.map((year) => {
+                    const r = getGlobalYearRadius(year);
+                    return (
+                        <g key={year}>
+                            <circle
+                                cx={cx} cy={cy} r={r}
+                                fill="none"
+                                stroke="rgba(255,255,255,0.08)"
+                                strokeDasharray="2 2"
+                                className="pointer-events-none"
+                            />
+                            <text
+                                x={cx}
+                                y={cy - r - 5}
+                                textAnchor="middle"
+                                fill="rgba(255,255,255,0.2)"
+                                fontSize="10"
+                                className="pointer-events-none select-none font-mono"
+                            >
+                                {year}
+                            </text>
+                        </g>
+                    );
+                })}
 
                 {/* --- Synapses (Semantic Connections) --- */}
                 {/* Draw lines from Active Core Nodes to their respective Clusters */}
