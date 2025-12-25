@@ -27,6 +27,9 @@ This project values:
 Contributions are welcome, but guided.
 See CONTRIBUTING.md.
 
+## How to read the map
+See [HOW_TO_READ.md](HOW_TO_READ.md).
+
 ## License
 This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 
