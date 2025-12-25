@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sidebar**: Improved z-indexing to ensure it overlays correctly on smaller screens.
 - **Data Model**: Simplified tool data by removing volatile pricing information.
 
-## [0.4.0] - 2024-12-20
+## [0.4.0] - 2025-12-20
 ### Added
 - Initial implementation of Radial Map visualization.
 - Basic Firebase Authentication integration.
