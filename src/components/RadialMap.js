@@ -11,10 +11,11 @@ function pol2cart(r, angleRad, cx, cy) {
 }
 
 // Assign component to window
-window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null, lang = 'es', searchTerm = '' }) {
+// Assign component to window
+window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null, lang = 'es', searchTerm = '', hoveredToolId = null, onHoverTool = () => { } }) {
     const containerRef = useRef(null);
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-    const [hoveredToolId, setHoveredToolId] = useState(null); // Add hover state
+    // Local hover state removed in favor of lifted state prop
 
     // Responsive logic with ResizeObserver for robust init
     useEffect(() => {
@@ -354,29 +355,62 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clus
                                         const isFadedBySearch = searchTerm !== "" && !isMatch;
                                         const isHovered = hoveredToolId === tool.name;
 
+                                        // ENTITY ONTOLOGY: Visual Encoding
+                                        // 1. Size = Base + Importance (1-10) * Factor
+                                        const importance = tool.importance || 3; // Default low importance
+                                        const nodeRadius = 2 + (importance * 0.8); // Range: 2.8px to 10px
+
+                                        // 2. Opacity = Consensus (0.0-1.0)
+                                        // Low consensus = Ghost node (transparent)
+                                        const consensus = tool.consensus !== undefined ? tool.consensus : 0.8;
+                                        const nodeOpacity = isFadedBySearch ? 0.2 : Math.max(0.3, consensus);
+
+                                        // 3. Halo (Multi-sector / High Importance Projections)
+                                        const hasHalo = importance >= 7;
+
                                         return (
                                             <g key={`sat-${idx}`}
-                                                onMouseEnter={() => setHoveredToolId(tool.name)}
-                                                onMouseLeave={() => setHoveredToolId(null)}>
+                                                className="group"
+                                                onMouseEnter={() => onHoverTool(tool.name)}
+                                                onMouseLeave={() => onHoverTool(null)}>
+
+                                                {/* Interaction Hit Area (Larger) */}
+                                                <circle cx={tool.pos.x} cy={tool.pos.y} r={10} fill="transparent" />
+
+                                                {/* Halo for High Importance */}
+                                                {hasHalo && (
+                                                    <circle
+                                                        cx={tool.pos.x} cy={tool.pos.y}
+                                                        r={nodeRadius + 3}
+                                                        fill="none"
+                                                        stroke={el.cluster.color}
+                                                        strokeOpacity={0.3}
+                                                        strokeWidth={1}
+                                                    />
+                                                )}
+
+                                                {/* Core Node */}
                                                 <circle
                                                     cx={tool.pos.x} cy={tool.pos.y}
-                                                    r={tool.isCustom ? 3 : 2.2}
+                                                    r={(tool.isCustom ? 3 : nodeRadius) * (isHovered ? 1.4 : 1)}
                                                     fill={tool.isCustom ? "#fff" : el.cluster.color}
-                                                    fillOpacity={isFadedBySearch ? 0.2 : 0.9}
-                                                    stroke={isMatch ? "#fff" : "none"}
-                                                    strokeWidth={isMatch ? 1.5 : 0}
-                                                    className="transition-all duration-300 hover:r-4 hover:fill-white"
+                                                    fillOpacity={nodeOpacity}
+                                                    stroke={isMatch || isHovered ? "#fff" : "none"}
+                                                    strokeWidth={isMatch || isHovered ? 1.5 : 0}
+                                                    className="transition-all duration-300"
                                                 />
-                                                {/* Tool Label on Hover or Match */}
-                                                {(isHovered || isMatch) && (
+
+                                                {/* Tool Label on Hover or Match or High Importance */}
+                                                {(isHovered || isMatch || (importance >= 8 && el.score > 0.2)) && (
                                                     <text
                                                         x={tool.pos.x}
-                                                        y={tool.pos.y - 8}
+                                                        y={tool.pos.y - nodeRadius - 5}
                                                         textAnchor="middle"
                                                         fill="white"
-                                                        fontSize="10"
-                                                        className="pointer-events-none select-none bg-black"
-                                                        style={{ textShadow: '0 1px 2px black' }}
+                                                        fontSize={isHovered ? "11" : "9"}
+                                                        fontWeight={isHovered ? "bold" : "normal"}
+                                                        className="pointer-events-none select-none bg-black/50 rounded px-1"
+                                                        style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
                                                     >
                                                         {tool.name}
                                                     </text>

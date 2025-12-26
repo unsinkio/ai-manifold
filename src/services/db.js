@@ -154,10 +154,14 @@ window.ManifoldDB = {
         localClusters.forEach(cluster => {
             const ref = ontologyRef.doc(cluster.id);
 
-            // Enrich tools with history
+            // Enrich tools with history & entity metrics
             const enrichedTools = cluster.tools.map(tool => {
                 const launchYear = tool.year || 2023;
-                const peak = 10 + (tool.name.length % 5) * 5; // Deterministic random peak
+                const peak = 10 + (tool.name.length % 5) * 5; // Deterministic random peak (10-35)
+
+                // Entity Metrics (Simulated for V1)
+                const importance = Math.round(peak / 3.5); // 1-10 Scale approx
+                const consensus = 0.5 + (tool.name.length % 5) * 0.1; // 0.5 - 0.9 Scale
 
                 const history = years.map(year => {
                     let value = 0;
@@ -169,7 +173,7 @@ window.ManifoldDB = {
                     return { year, value };
                 });
 
-                return { ...tool, history };
+                return { ...tool, history, importance, consensus };
             });
 
             batch.set(ref, {

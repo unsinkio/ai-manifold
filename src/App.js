@@ -33,7 +33,11 @@ window.App = function App() {
     const [coreTools, setCoreTools] = useState([]); // Dynamic Core Nodes
     const [toast, setToast] = useState({ message: null, type: 'info' });
     const [lang, setLang] = useState(window.ManifoldI18n ? window.ManifoldI18n.currentLang : 'es');
+
     const [searchTerm, setSearchTerm] = useState("");
+
+    // View Synchronization State
+    const [hoveredToolId, setHoveredToolId] = useState(null);
 
     // Access i18n helper
     const t = (k) => window.ManifoldI18n ? window.ManifoldI18n.t(k) : k;
@@ -353,12 +357,15 @@ window.App = function App() {
                                 clusterScores={clusterScores}
                                 userCoreNodes={coreTools.length > 0 ? coreTools : null}
                                 lang={lang}
+
                                 searchTerm={searchTerm}
+                                hoveredToolId={hoveredToolId}
+                                onHoverTool={setHoveredToolId}
                             />
                         </div>
 
-                        {/* Sidebar */}
-                        <div className={`w-full md:w-96 bg-[#0f172a]/95 backdrop-blur-md border-l border-white/10 p-6 flex flex-col transition-all duration-300 absolute right-0 top-0 bottom-0 shadow-2xl z-50 ${selectedClusterId ? 'translate-x-0' : 'translate-x-full'}`}>
+                        {/* Sidebar: Only show when a cluster is selected AND Streamgraph is CLOSED */}
+                        <div className={`w-full md:w-96 bg-[#0f172a]/95 backdrop-blur-md border-l border-white/10 p-6 flex flex-col transition-all duration-300 absolute right-0 top-0 bottom-0 shadow-2xl z-50 ${(selectedClusterId && !showTimeline) ? 'translate-x-0' : 'translate-x-full'}`}>
                             {selectedClusterId && displayData && (
                                 <>
                                     <button
@@ -401,9 +408,9 @@ window.App = function App() {
                                         ))}
                                     </div>
 
-                                    {/* ADD TOOL BUTTON */}
+                                    {/* ADD TOOL BUTTON & CONTROLS */}
                                     {user && (
-                                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                                        <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-3">
                                             <button
                                                 onClick={handleAddToolStart}
                                                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1a2440] hover:bg-[#253259] border border-dashed border-gray-600 hover:border-[#9da2ff] text-gray-400 hover:text-white rounded-lg transition-all text-sm font-medium"
@@ -411,29 +418,23 @@ window.App = function App() {
                                                 <span>+</span> {t("sidebar.add")}
                                             </button>
 
-                                            {/* SMART SYNC: Only show if local data has more content than cloud */}
-                                            {(() => {
-                                                // Calculate Diff
-                                                const localClusters = window.ManifoldData ? window.ManifoldData.clusters : [];
-                                                const cloudClusters = clusters; // This is state, which comes from cloud subscription
+                                            {/* FORCE SYNC BUTTON */}
+                                            <button
+                                                onClick={() => DB.seedHistory()}
+                                                className="w-full text-xs text-yellow-500 hover:text-yellow-400 py-3 border border-yellow-500/30 hover:border-yellow-500/60 rounded transition-colors flex items-center justify-center gap-2"
+                                            >
+                                                <span>⚠️</span> Sync/Update Cloud Data
+                                            </button>
 
-                                                const localToolCount = localClusters.reduce((acc, c) => acc + c.tools.length, 0);
-                                                const cloudToolCount = cloudClusters.reduce((acc, c) => acc + (c.tools ? c.tools.length : 0), 0);
-
-                                                // If we have more local tools than cloud, or cloud is empty, show sync
-                                                const needsSync = localToolCount > cloudToolCount;
-
-                                                if (!needsSync) return null;
-
-                                                return (
-                                                    <button
-                                                        onClick={() => DB.seedHistory()}
-                                                        className="w-full text-xs text-yellow-500 hover:text-yellow-400 py-2 border border-yellow-500/30 hover:border-yellow-500/60 rounded transition-colors flex items-center justify-center gap-2"
-                                                    >
-                                                        <span>⚠️</span> Sync Local Data to Cloud
-                                                    </button>
-                                                );
-                                            })()}
+                                            {/* STREAMGRAPH RE-OPEN BUTTON */}
+                                            {!showTimeline && (
+                                                <button
+                                                    onClick={() => setShowTimeline(true)}
+                                                    className="w-full text-xs text-[#9da2ff] hover:text-white py-3 border border-[#9da2ff]/30 hover:border-[#9da2ff] rounded transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <span>📈</span> View Historical Evolution
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </>
@@ -465,7 +466,12 @@ window.App = function App() {
             {showTimeline && selectedClusterId && (
                 <Streamgraph
                     cluster={clusters.find(c => c.id === selectedClusterId)}
+
                     onClose={() => setShowTimeline(false)}
+                    hoveredToolId={hoveredToolId}
+                    onHoverTool={setHoveredToolId}
+                    totalClusters={clusters.length}
+                    clusterIndex={clusters.findIndex(c => c.id === selectedClusterId)}
                 />
             )}
 

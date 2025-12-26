@@ -5,7 +5,7 @@ const { useMemo } = React;
 // X-Axis: Time (2018-2025)
 // Y-Axis: Aggregated Importance (Stack)
 
-const Streamgraph = ({ cluster, onClose }) => {
+const Streamgraph = ({ cluster, onClose, hoveredToolId, onHoverTool, totalClusters, clusterIndex }) => {
     // Configuration
     const width = 800;
     const height = 400;
@@ -110,9 +110,17 @@ const Streamgraph = ({ cluster, onClose }) => {
         if (maxT > globalMaxThickness) globalMaxThickness = maxT;
     });
 
+    // End of layers logic
+
+    // Default to center (Fixed Position as per user request to keep animation but centered)
+    let positionClass = "left-1/2 -translate-x-1/2";
+
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 animate-fadeIn backdrop-blur-sm">
-            <div className="bg-[#050712] border border-white/10 rounded-xl w-[900px] max-w-full shadow-2xl overflow-hidden relative">
+        <div className={`fixed inset-0 z-50 pointer-events-none flex items-center transition-all duration-500`}>
+            {/* Backdrop removed to allow clicking map? Or keep dim? User wants to see nodes. Keep faint dim. */}
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
+
+            <div className={`bg-[#050712]/90 border border-white/20 rounded-xl w-[900px] max-w-[85vw] shadow-2xl overflow-hidden relative backdrop-blur-xl pointer-events-auto absolute ${positionClass} transition-all duration-700 ease-out`}>
 
                 {/* Header... */}
                 <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#0a0f26]">
@@ -126,8 +134,8 @@ const Streamgraph = ({ cluster, onClose }) => {
                     <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors">✕</button>
                 </div>
 
-                <div className="p-6 overflow-x-auto">
-                    <svg width={width} height={height} className="mx-auto">
+                <div className="p-6 overflow-hidden">
+                    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-h-[60vh] mx-auto block">
                         <g className="grid-layer">
                             {years.map(year => (
                                 <g key={year}>
@@ -156,15 +164,23 @@ const Streamgraph = ({ cluster, onClose }) => {
                             const intensity = globalMaxThickness > 0 ? (maxThickness / globalMaxThickness) : 0;
                             const energeticColor = getSpectrumColor(intensity);
 
+                            // Visual Sync Logic
+                            const isHovered = hoveredToolId === streams[i].tool.name;
+                            const isDimmed = hoveredToolId && !isHovered;
+
                             return (
-                                <g key={i} className="group transition-opacity duration-300 hover:opacity-100 opacity-90 hover:z-10 relative">
+                                <g key={i}
+                                    className={`group transition-all duration-300 ${isDimmed ? 'opacity-20' : 'opacity-90'} ${isHovered ? 'z-20 opacity-100' : 'hover:z-10'}`}
+                                    onMouseEnter={() => onHoverTool && onHoverTool(streams[i].tool.name)}
+                                    onMouseLeave={() => onHoverTool && onHoverTool(null)}
+                                >
                                     <path
                                         d={generateAreaPath(layer)}
                                         fill={energeticColor}
-                                        fillOpacity={0.85} // High opacity for vivid colors
-                                        stroke={energeticColor}
-                                        strokeWidth="0.5"
-                                        className="transition-all duration-300 hover:fill-opacity-100 hover:stroke-white/50"
+                                        fillOpacity={isHovered ? 1 : 0.85}
+                                        stroke={isHovered ? "#fff" : energeticColor}
+                                        strokeWidth={isHovered ? "2" : "0.5"}
+                                        className="transition-all duration-300"
                                     />
 
                                     {/* Direct Label */}
