@@ -31,6 +31,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sidebar**: Improved z-indexing to ensure it overlays correctly on smaller screens.
 - **Data Model**: Simplified tool data by removing volatile pricing information.
 
+## [0.5.0] - 2025-12-25
+### Constitutional & Visual Features
+- **Entity Ontology**: Implemented core visual encoding logic:
+    - **Node Size**: Maps to `importance` (derived from growth metrics).
+    - **Node Opacity**: Maps to `consensus` (epistemic stability).
+    - **Halo Effect**: Added for high-importance/multi-sector tools.
+- **Streamgraph V2**:
+    - **Full Synchronization**: Hovering a stream highlights the node in Radial Map and vice versa.
+    - **Chromatic Scale**: Replaced single-color opacity with a full spectrum (Cold->Hot) to visualize growth intensity.
+    - **Responsive Design**: Implemented `viewBox` for perfect scaling on all screens.
+    - **Layout**: Centered, backdrop-enhanced overlay (85vw width) that hides the sidebar for focused viewing.
+- **Data Persistance**:
+    - **Migration**: Implemented `seedHistory` utility to generate and persist longitudinal data (2018-2025) to Firebase.
+    - **Hybrid Loading**: Local fallback + Cloud source of truth for tool history.
+
+### Fixed
+- **Streamgraph Clipping**: Fixed issue where graph was cut off on smaller screens.
+- **Sidebar / Graph Overlap**: Logic added to auto-hide Sidebar when Streamgraph is active.
+- **Hover Sync**: Resolved state lifting issues to ensure seamless cross-component highlighting.
+
 ## [0.4.0] - 2025-12-20
 ### Added
 - Initial implementation of Radial Map visualization.
