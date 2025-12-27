@@ -15,5 +15,13 @@ service cloud.firestore {
       allow read: if true; 
       allow write: if request.auth != null; 
     }
+
+    // 3. Tensor Model (Domains, Tools, Weights)
+    // READ: Public
+    // WRITE: Authenticated users (for seeding/syncing)
+    match /tensor_model/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
   }
 }

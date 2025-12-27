@@ -361,6 +361,7 @@ window.App = function App() {
                                 searchTerm={searchTerm}
                                 hoveredToolId={hoveredToolId}
                                 onHoverTool={setHoveredToolId}
+                                customTools={customTools}
                             />
                         </div>
 
@@ -420,7 +421,7 @@ window.App = function App() {
 
                                             {/* FORCE SYNC BUTTON */}
                                             <button
-                                                onClick={() => DB.seedHistory()}
+                                                onClick={() => DB.seedTensorData()}
                                                 className="w-full text-xs text-yellow-500 hover:text-yellow-400 py-3 border border-yellow-500/30 hover:border-yellow-500/60 rounded transition-colors flex items-center justify-center gap-2"
                                             >
                                                 <span>⚠️</span> Sync/Update Cloud Data

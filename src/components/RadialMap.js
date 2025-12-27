@@ -1,8 +1,6 @@
 const { useState, useEffect, useRef } = React;
-// Access data from window global
-const clusters = window.ManifoldData ? window.ManifoldData.clusters : [];
-const coreNodes = window.ManifoldData ? window.ManifoldData.coreNodes : [];
 
+// Helper: Polar to Cartesian
 function pol2cart(r, angleRad, cx, cy) {
     return {
         x: cx + r * Math.cos(angleRad),
@@ -10,420 +8,291 @@ function pol2cart(r, angleRad, cx, cy) {
     };
 }
 
-// Assign component to window
-// Assign component to window
-window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, clusterScores = {}, customTools = [], userCoreNodes = null, lang = 'es', searchTerm = '', hoveredToolId = null, onHoverTool = () => { } }) {
-    const containerRef = useRef(null);
-    const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-    // Local hover state removed in favor of lifted state prop
+// RadialMap Component
+window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, searchTerm = '', hoveredToolId = null, onHoverTool = () => { }, customTools = [] }) {
+    // Access new Tensor Data
+    const domains = window.ManifoldData.domains || [];
+    let tensor = window.ManifoldData.tensor ? [...window.ManifoldData.tensor] : [];
+    let tools = window.ManifoldData.tools ? [...window.ManifoldData.tools] : [];
 
-    // Responsive logic with ResizeObserver for robust init
+    // --- MERGE CUSTOM TOOLS ---
+    if (customTools && customTools.length > 0) {
+        customTools.forEach(ct => {
+            // Add to Tools list
+            tools.push({
+                id: ct.id,
+                name: ct.name,
+                description: { es: ct.description, en: ct.description }, // Basic i18n support
+                year: ct.year,
+                isCustom: true
+            });
+
+            // Add to Tensor (Primary Domain)
+            if (ct.primaryDomain) {
+                tensor.push({ toolId: ct.id, domainId: ct.primaryDomain, weight: 1.0 });
+            }
+
+            // Add to Tensor (Secondary Domains)
+            if (ct.secondaryDomains && Array.isArray(ct.secondaryDomains)) {
+                ct.secondaryDomains.forEach(sdId => {
+                    tensor.push({ toolId: ct.id, domainId: sdId, weight: 0.7 }); // Slightly less weight
+                });
+            }
+        });
+    }
+
+    // Fallback if data not ready
+    if (!domains.length) return null;
+
+    const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+    const containerRef = useRef(null);
+
+    // Responsive Logic
     useEffect(() => {
         if (!containerRef.current) return;
-
         const observer = new ResizeObserver(entries => {
             for (let entry of entries) {
                 const { width, height } = entry.contentRect;
-                // Only update if dimensions actually changed and are positive
-                if (width > 0 && height > 0) {
-                    setDimensions({ width, height });
-                }
+                if (width > 0 && height > 0) setDimensions({ width, height });
             }
         });
-
         observer.observe(containerRef.current);
-
         return () => observer.disconnect();
     }, []);
 
     const { width, height } = dimensions;
     const cx = width / 2;
     const cy = height / 2;
+    const baseRadius = Math.min(width, height) * 0.35; // Usage space
 
-    // ADJUSTED GEOMETRY: Smaller radius to prevent clipping
-    const baseRadius = Math.min(width, height) * 0.28;
-
-    // -- Core Nodes Positions --
-    // Use user nodes if provided, otherwise default static
-    const activeCoreNodes = userCoreNodes || coreNodes;
-
-    const coreRadius = baseRadius * 0.5; // More space for core
-    const coreAngleStep = (Math.PI * 2) / (activeCoreNodes.length || 1);
-    const corePositions = activeCoreNodes.map((node, i) => {
-        const angle = i * coreAngleStep - Math.PI / 2;
-        return { ...node, ...pol2cart(coreRadius, angle, cx, cy) };
+    // 1. Calculate Domain Angles (Fixed Frames)
+    const angleStep = (Math.PI * 2) / domains.length;
+    const domainGeometry = domains.map((d, i) => {
+        const midAngle = i * angleStep - Math.PI / 2;
+        return {
+            ...d,
+            midAngle,
+            startAngle: midAngle - angleStep / 2,
+            endAngle: midAngle + angleStep / 2
+        };
     });
 
-    if (!clusters || clusters.length === 0) return null;
+    // 2. Calculate Tool Positions (Tensor Projection)
+    const computedTools = tools.map(tool => {
+        // Get tensor vector
+        const entries = tensor.filter(e => e.toolId === tool.id);
 
-    const angleStep = (Math.PI * 2) / clusters.length;
+        // If no data, default to edge/first domain?
+        if (entries.length === 0) return { ...tool, r: baseRadius, angle: 0, x: cx + baseRadius, y: cy, color: "#999", entropy: 0 };
 
-    // -- Prepare Cluster Data with Reactive Geometry --
-    const clusterElements = clusters.map((cluster, i) => {
-        const score = clusterScores[cluster.id] || 0; // 0 to 1
+        // Aggregation for Angle (Circular Mean)
+        let sumSin = 0;
+        let sumCos = 0;
+        let totalWeight = 0;
 
-        // REACTIVE GEOMETRY: Radius expands with score
-        // Base sizes
-        const baseInner = baseRadius * 0.9;
-        const baseOuter = baseRadius * 1.35;
-
-        // Expansion factor (up to 15% larger)
-        const expansion = score * (baseRadius * 0.15);
-
-        const arcInner = baseInner; // Inner stays fixed for stability
-        const arcOuter = baseOuter + expansion; // Outer grows
-
-        const startAngle = i * angleStep - Math.PI / 2;
-        const endAngle = startAngle + angleStep * 0.9;
-        const midAngle = (startAngle + endAngle) / 2;
-
-        // Calculate Arc Path
-        const p1 = pol2cart(arcInner, startAngle, cx, cy);
-        const p2 = pol2cart(arcInner, endAngle, cx, cy);
-        const p3 = pol2cart(arcOuter, endAngle, cx, cy);
-        const p4 = pol2cart(arcOuter, startAngle, cx, cy);
-
-        const largeArcFlag = endAngle - startAngle <= Math.PI ? "0" : "1";
-        const pathData = [
-            "M", p1.x, p1.y,
-            "A", arcInner, arcInner, 0, largeArcFlag, 1, p2.x, p2.y,
-            "L", p3.x, p3.y,
-            "A", arcOuter, arcOuter, 0, largeArcFlag, 0, p4.x, p4.y,
-            "Z"
-        ].join(" ");
-
-        const nodeR = (arcInner + arcOuter) / 2;
-        const nodePos = pol2cart(nodeR, midAngle, cx, cy);
-        const labelPos = pol2cart(arcOuter + 25, midAngle, cx, cy);
-
-        // -- SATELLITE NODES (Tools) --
-        // Merge static + custom tools for this cluster
-        const clusterCustomTools = customTools.filter(t => t.sectorId === cluster.id);
-        const allTools = [...(cluster.tools || []), ...clusterCustomTools];
-
-        // Search Filtering Logic
-        const toolsWithMatch = allTools.map(t => {
-            const match = searchTerm && t.name.toLowerCase().includes(searchTerm.toLowerCase());
-            return { ...t, isMatch: match };
-        });
-        const hasSearchMatch = toolsWithMatch.some(t => t.isMatch);
-
-
-        // -- CONSTITUTIONAL ALIGNMENT --
-        // 1. Time as Radial Depth
-        // 2. Sectors as Fixed Angular Frames
-
-        const minYear = 2018;
-        const maxYear = 2025; // Future proofing
-        const yearSpan = maxYear - minYear;
-
-        // Map Year to Radius relative to baseRadius
-        const getYearRadius = (y) => {
-            // 2018 is near core, 2024 is outer
-            const normalize = Math.max(0, Math.min(1, (y - minYear) / yearSpan));
-            // Spread from 0.6 * baseRadius (core) to 1.6 * baseRadius
-            // This puts early tools near the core and new ones further out
-            return baseRadius * (0.7 + normalize * 0.9);
-        };
-
-        // Distribute tools constitutionally
-        const totalTools = toolsWithMatch.length;
-        const satellites = toolsWithMatch.map((tool, idx) => {
-            const year = tool.year || 2023; // Default to 2023 if missing
-            const r = getYearRadius(year);
-
-            // Angular distribution:
-            // Tools of the same sector share the wedge.
-            // We distribute them angularly based on their index to avoid overlap.
-            // But ideally, they should have a specific "sub-domain" angle. 
-            // For now, we spread them within 80% of the wedge.
-            const spread = 0.8;
-            const wedgeSize = endAngle - startAngle;
-            // Simple deterministic hash for position stability if index changes? 
-            // For now, using index is fine as list is static.
-            // Center them:
-            const relativeAngle = ((idx + 0.5) / totalTools - 0.5) * wedgeSize * spread;
-            const toolAngle = midAngle + relativeAngle;
-
-            return {
-                ...tool,
-                pos: pol2cart(r, toolAngle, cx, cy),
-                angle: toolAngle,
-                r: r // Store radius for potential other uses
-            };
+        entries.forEach(e => {
+            const domain = domainGeometry.find(d => d.id === e.domainId);
+            if (domain) {
+                const w = e.weight || 1;
+                sumSin += w * Math.sin(domain.midAngle);
+                sumCos += w * Math.cos(domain.midAngle);
+                totalWeight += w;
+            }
         });
 
-        // Calculate arc for visual container (still relevant for sector identity)
-        // We keep the "scored" arc as the background "Plateau"
+        const angle = Math.atan2(sumSin, sumCos);
+
+        // Aggregation for Radius (Entropy / Generality)
+        // H(t) = - sum(p * log(p))
+        let entropy = 0;
+        entries.forEach(e => {
+            const p = (e.weight || 1) / totalWeight;
+            if (p > 0) entropy -= p * Math.log(p);
+        });
+
+        // Normalize Entropy: H_n = H / log(N)
+        const maxEntropy = Math.log(domains.length);
+        const normalizedEntropy = totalWeight > 0 ? (entropy / maxEntropy) : 0; // 0 (Specialized) to 1 (General)
+
+        // Map to Radius: 
+        // High Entropy (General) -> Center (Small Radius)
+        // Low Entropy (Specialized) -> Edge (Large Radius)
+        const minR = baseRadius * 0.2;
+        const maxR = baseRadius * 1.2;
+
+        // Invert: 1 - Hn
+        const r = minR + (1 - normalizedEntropy) * (maxR - minR);
+
+        const pos = pol2cart(r, angle, cx, cy);
+
+        // Check search
+        const isMatch = searchTerm && tool.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+        // Determine "Primary" Sector for color (Max Weight)
+        // Safety check if entries exist
+        const primaryEntry = entries.length > 0 ? entries.reduce((prev, current) => (prev.weight > current.weight) ? prev : current) : null;
+        const primaryDomain = primaryEntry ? domains.find(d => d.id === primaryEntry.domainId) : null;
+        const color = primaryDomain ? primaryDomain.color : "#ccc";
+
+        // --- GEODESIC TRAIL CALCULATION ---
+        let trailPath = null;
+        if (tool.history && tool.history.length > 0) {
+            // Compute Previous Position
+            // Simplified: Just use the first history point (origin)
+            const hist = tool.history[0];
+            const histDomain = domainGeometry.find(d => d.id === hist.domainId);
+
+            if (histDomain) {
+                // Previous Angle (Single domain for now, or weighted if array)
+                const prevAngle = histDomain.midAngle;
+
+                // Previous Radius (Entropy)
+                // Single domain = Low Entropy = High Radius (Specialized)
+                // Let's simplify: History usually implies specialization -> generalization
+                const prevR = baseRadius * 1.0;
+
+                const prevPos = pol2cart(prevR, prevAngle, cx, cy);
+
+                // Create curved path (Geodesic)
+                // Q = Control Point
+                const cp = { x: (prevPos.x + pos.x) / 2, y: (prevPos.y + pos.y) / 2 };
+                trailPath = `M ${prevPos.x} ${prevPos.y} Q ${cp.x} ${cp.y} ${pos.x} ${pos.y}`;
+            }
+        }
 
         return {
-            cluster,
-            pathData,
-            nodePos,
-            labelPos,
-            score,
-            midAngle,
-            satellites,
-            hasSearchMatch,
-            getYearRadius // Pass helper if needed down (not needed here)
+            ...tool,
+            x: pos.x,
+            y: pos.y,
+            r,
+            angle,
+            color,
+            isMatch,
+            entropy: normalizedEntropy,
+            trailPath
         };
     });
 
-    // Helper for Time Rings
-    const timeRings = [2018, 2020, 2022, 2024];
-    const minYear = 2018;
-    const maxYear = 2025;
-    const yearSpan = maxYear - minYear;
-    const getGlobalYearRadius = (y) => baseRadius * (0.7 + (Math.max(0, Math.min(1, (y - minYear) / yearSpan)) * 0.9));
+    const hasSearchMatch = computedTools.some(t => t.isMatch);
 
     return (
-        <div
-            ref={containerRef}
-            className="w-full h-full relative radial-gradient-bg"
-            onClick={() => onClusterSelect(null)}
-        >
+        <div ref={containerRef} className="w-full h-full relative radial-gradient-bg" onClick={() => onClusterSelect(null)}>
             <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`}>
                 <defs>
                     <filter id="glow">
                         <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
-                        <feMerge>
-                            <feMergeNode in="coloredBlur" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                    </filter>
-                    <filter id="heatGlow" x="-50%" y="-50%" width="200%" height="200%">
-                        <feGaussianBlur stdDeviation="6" result="coloredBlur" />
-                        <feMerge>
-                            <feMergeNode in="coloredBlur" />
-                            <feMergeNode in="SourceGraphic" />
-                        </feMerge>
+                        <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
                     </filter>
                 </defs>
 
-                {/* --- Background Topology (Rings) --- */}
-                {/* --- Background Topology (Time Rings) --- */}
-                {timeRings.map((year) => {
-                    const r = getGlobalYearRadius(year);
+                {/* --- 1. Background Grid (Generality Zones) --- */}
+                {/* Center (General) -> Outer (Specialized) */}
+                {[0.2, 0.5, 0.8, 1.1].map((scale, i) => (
+                    <circle key={i} cx={cx} cy={cy} r={baseRadius * scale}
+                        fill="none" stroke="rgba(255,255,255,0.05)" strokeDasharray="4 4" />
+                ))}
+
+                {/* --- 2. Sectors (Domains) --- */}
+                {domainGeometry.map(domain => {
+                    const isSelected = selectedClusterId === domain.id;
+                    const innerR = baseRadius * 0.2; // Start from core
+                    const outerR = baseRadius * 1.3;
+
+                    // Arc Path
+                    const p1 = pol2cart(innerR, domain.startAngle, cx, cy);
+                    const p2 = pol2cart(innerR, domain.endAngle, cx, cy);
+                    const p3 = pol2cart(outerR, domain.endAngle, cx, cy);
+                    const p4 = pol2cart(outerR, domain.startAngle, cx, cy);
+
+                    const largeArc = (domain.endAngle - domain.startAngle) <= Math.PI ? "0" : "1";
+
+                    const path = `M ${p1.x} ${p1.y} A ${innerR} ${innerR} 0 ${largeArc} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${outerR} ${outerR} 0 ${largeArc} 0 ${p4.x} ${p4.y} Z`;
+
                     return (
-                        <g key={year}>
-                            <circle
-                                cx={cx} cy={cy} r={r}
-                                fill="none"
-                                stroke="rgba(255,255,255,0.08)"
-                                strokeDasharray="2 2"
-                                className="pointer-events-none"
+                        <g key={domain.id} onClick={(e) => { e.stopPropagation(); onClusterSelect(domain.id); }} className="cursor-pointer group">
+                            <path
+                                d={path}
+                                fill={domain.color}
+                                fillOpacity={isSelected ? 0.10 : 0.01}
+                                stroke="none"
+                                className="transition-all duration-500 group-hover:fill-opacity-[0.04]"
                             />
+
+                            {/* Label at edge */}
                             <text
-                                x={cx}
-                                y={cy - r - 5}
+                                x={pol2cart(baseRadius * 1.4, domain.midAngle, cx, cy).x}
+                                y={pol2cart(baseRadius * 1.4, domain.midAngle, cx, cy).y}
+                                fill={isSelected ? "#fff" : domain.color}
                                 textAnchor="middle"
-                                fill="rgba(255,255,255,0.2)"
-                                fontSize="10"
-                                className="pointer-events-none select-none font-mono"
+                                alignmentBaseline="middle"
+                                fontSize={isSelected ? 12 : 10}
+                                opacity={isSelected ? 1 : 0.4}
+                                className="pointer-events-none select-none transition-all"
                             >
-                                {year}
+                                {window.ManifoldI18n.translateData(domain.label)}
                             </text>
                         </g>
                     );
                 })}
 
-                {/* --- Synapses (Semantic Connections) --- */}
-                {/* Draw lines from Active Core Nodes to their respective Clusters */}
-                {activeCoreNodes.map((coreNode, i) => {
-                    // Find which clusters contains this tool
-                    // We need to match coreNode.id (or label) with cluster tools
-                    const targetClustersIds = clusters.filter(c => {
-                        // Check static tools
-                        const hasStatic = c.tools.some(t => {
-                            // Match by ID, Name or Slug
-                            const cid = t.id || t.name.toLowerCase().replace(/\s+/g, '-');
-                            return cid === coreNode.id || t.name === coreNode.label;
-                        });
-                        // Check custom tools (if they have sectorId matching cluster.id)
-                        // Actually coreNode might carry sector info if passed from topReviews
-                        return hasStatic;
-                    }).map(c => c.id);
+                {/* --- 3. Tools (Projected Entities) --- */}
+                {computedTools.map((tool, i) => {
+                    const isHovered = hoveredToolId === tool.name;
+                    const isDimmed = (hoveredToolId && !isHovered) || (searchTerm && !tool.isMatch);
 
-                    // Also check if coreNode came with sectorId (custom tool)
-                    if (coreNode.sectorId && !targetClustersIds.includes(coreNode.sectorId)) {
-                        targetClustersIds.push(coreNode.sectorId);
-                    }
-
-                    return targetClustersIds.map(clusterId => {
-                        const clusterIndex = clusters.findIndex(c => c.id === clusterId);
-                        if (clusterIndex === -1) return null;
-
-                        const clusterElement = clusterElements[clusterIndex];
-                        if (!clusterElement) return null;
-
-                        // Calculate points
-                        const start = corePositions[i];
-                        const end = clusterElement.nodePos;
-
-                        // Control point for curvature
-                        const cp = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-
-                        return (
-                            <path
-                                key={`synapse-${coreNode.id}-${clusterId}`}
-                                d={`M ${start.x} ${start.y} Q ${cp.x} ${cp.y} ${end.x} ${end.y}`}
-                                fill="none"
-                                stroke={`rgba(157, 162, 255, ${0.4 + clusterElement.score * 0.6})`}
-                                strokeWidth={1 + clusterElement.score * 2}
-                                strokeDasharray={clusterElement.score > 0.6 ? "4 3" : "none"}
-                                className="pointer-events-none"
-                            >
-                                {clusterElement.score > 0.6 && (
-                                    <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.5s" repeatCount="indefinite" />
-                                )}
-                            </path>
-                        );
-                    });
-                })}
-
-                {/* --- Core --- */}
-                <circle cx={cx} cy={cy} r={coreRadius * 0.6} fill="none" stroke="rgba(157,162,255,0.2)" strokeDasharray="2 4" className="pointer-events-none" />
-                {corePositions.map((pos) => (
-                    <g key={pos.id} className="cursor-default pointer-events-none">
-                        <circle cx={pos.x} cy={pos.y} r={6} fill="#fff" fillOpacity="0.9" stroke="rgba(157,162,255,0.9)" strokeWidth="1.5" />
-                        <text x={pos.x + 10} y={pos.y + 4} fill="#d7dbff" fontSize="10" className="pointer-events-none select-none">{pos.label}</text>
-                    </g>
-                ))}
-                {/* REMOVED LABEL "Nucleo de IA" */}
-
-                {/* --- Cluster Elements --- */}
-                {clusterElements.map((el) => {
-                    const isSelected = selectedClusterId === el.cluster.id;
-                    const isDimmed = selectedClusterId && !isSelected;
-
-                    // Style Logic
-                    const fillOpacity = isDimmed ? 0.1 : (0.1 + el.score * 0.5);
-                    const strokeWidth = (isSelected ? 2 : 1) + (el.score * 2);
-
-                    // Search Visibility Logic
-                    // If matched, ensure it's not fully dimmed even if another is selected? 
-                    // Or prioritize search.
-                    const isSearchRelevant = searchTerm !== "" && el.hasSearchMatch;
+                    // Size logic
+                    const size = isHovered ? 8 : (4 + (tool.entropy * 3)); // More general = slightly larger for visibility
 
                     return (
-                        <g
-                            key={el.cluster.id}
-                            onClick={(e) => { e.stopPropagation(); onClusterSelect(el.cluster.id); }}
-                            className={`cursor-pointer transition-all duration-500 ${(isDimmed && !isSearchRelevant) ? 'opacity-40' : ''}`}
-                            style={{ filter: el.score > 0.4 ? 'url(#heatGlow)' : 'none' }}
+                        <g key={tool.id}
+                            className={`transition-all duration-500 ${isDimmed ? 'opacity-20' : 'opacity-100'}`}
+                            style={{ transformOrigin: `${tool.x}px ${tool.y}px`, transform: isHovered ? 'scale(1.5)' : 'scale(1)' }}
+                            onMouseEnter={() => onHoverTool(tool.name)}
+                            onMouseLeave={() => onHoverTool(null)}
                         >
-                            {/* Arc */}
-                            <path
-                                d={el.pathData}
-                                fill={el.cluster.color}
-                                fillOpacity={fillOpacity}
-                                stroke={el.cluster.color}
-                                strokeWidth={strokeWidth}
-                                strokeOpacity={0.5 + el.score * 0.5}
-                                className="transition-all duration-700 ease-out"
-                            />
+                            {/* --- TRAIL / WAKE (Geodesic History) --- */}
+                            {/* Only visible on Hover or Search Match */}
+                            {tool.trailPath && (isHovered || tool.isMatch) && (
+                                <g className="animate-fadeIn">
+                                    {/* Trail Line */}
+                                    <path
+                                        d={tool.trailPath}
+                                        fill="none"
+                                        stroke={tool.color}
+                                        strokeWidth="2.5"
+                                        strokeDasharray="4 3"
+                                        strokeLinecap="round"
+                                        opacity="0.9"
+                                    />
+                                    {/* Origin Dot (Ghost) */}
+                                    <circle cx={tool.trailPath.split(' ')[1]} cy={tool.trailPath.split(' ')[2]} r="3" fill={tool.color} opacity="0.6" />
+                                </g>
+                            )}
 
-                            {/* Center Node */}
-                            <circle
-                                cx={el.nodePos.x} cy={el.nodePos.y}
-                                r={(isSelected ? 6 : 4) + (el.score * 4)}
-                                fill={el.score > 0.6 ? '#fff' : el.cluster.color}
-                                stroke={el.cluster.color}
-                                strokeWidth="1"
-                                className="transition-all duration-500"
-                            />
+                            {/* Halo for high entropy (General tools) -> "Glowing Core" effect */}
+                            {tool.entropy > 0.3 && (
+                                <circle cx={tool.x} cy={tool.y} r={size + 4} fill={tool.color} fillOpacity="0.1" />
+                            )}
+
+                            <circle cx={tool.x} cy={tool.y} r={size} fill={tool.color} stroke={isHovered || tool.isMatch ? "#fff" : "none"} strokeWidth={1} />
 
                             {/* Label */}
-                            <text
-                                x={el.labelPos.x} y={el.labelPos.y}
-                                fill={el.score > 0.6 ? "#fff" : "#aeb4d1"}
-                                fontWeight={el.score > 0.6 ? "bold" : "normal"}
-                                fontSize={isSelected ? "13" : "11"}
-                                textAnchor={el.labelPos.x >= cx ? "start" : "end"}
-                                alignmentBaseline="middle"
-                                className="select-none transition-all duration-500"
-                            >
-                                {window.ManifoldI18n.translateData(el.cluster.label)} {el.score > 0.1 && "★"}
-                            </text>
-
-                            {/* --- SATELLITE NODES (Tools) --- */}
-                            {/* Show satellites if selected OR high score OR search active for this cluster */}
-                            {(isSelected || el.score > 0.2 || (searchTerm !== "" && el.hasSearchMatch)) && (
-                                <g className="satellites animate-fadeIn">
-                                    {el.satellites.map((tool, idx) => {
-                                        const isMatch = tool.isMatch;
-                                        const isFadedBySearch = searchTerm !== "" && !isMatch;
-                                        const isHovered = hoveredToolId === tool.name;
-
-                                        // ENTITY ONTOLOGY: Visual Encoding
-                                        // 1. Size = Base + Importance (1-10) * Factor
-                                        const importance = tool.importance || 3; // Default low importance
-                                        const nodeRadius = 2 + (importance * 0.8); // Range: 2.8px to 10px
-
-                                        // 2. Opacity = Consensus (0.0-1.0)
-                                        // Low consensus = Ghost node (transparent)
-                                        const consensus = tool.consensus !== undefined ? tool.consensus : 0.8;
-                                        const nodeOpacity = isFadedBySearch ? 0.2 : Math.max(0.3, consensus);
-
-                                        // 3. Halo (Multi-sector / High Importance Projections)
-                                        const hasHalo = importance >= 7;
-
-                                        return (
-                                            <g key={`sat-${idx}`}
-                                                className="group"
-                                                onMouseEnter={() => onHoverTool(tool.name)}
-                                                onMouseLeave={() => onHoverTool(null)}>
-
-                                                {/* Interaction Hit Area (Larger) */}
-                                                <circle cx={tool.pos.x} cy={tool.pos.y} r={10} fill="transparent" />
-
-                                                {/* Halo for High Importance */}
-                                                {hasHalo && (
-                                                    <circle
-                                                        cx={tool.pos.x} cy={tool.pos.y}
-                                                        r={nodeRadius + 3}
-                                                        fill="none"
-                                                        stroke={el.cluster.color}
-                                                        strokeOpacity={0.3}
-                                                        strokeWidth={1}
-                                                    />
-                                                )}
-
-                                                {/* Core Node */}
-                                                <circle
-                                                    cx={tool.pos.x} cy={tool.pos.y}
-                                                    r={(tool.isCustom ? 3 : nodeRadius) * (isHovered ? 1.4 : 1)}
-                                                    fill={tool.isCustom ? "#fff" : el.cluster.color}
-                                                    fillOpacity={nodeOpacity}
-                                                    stroke={isMatch || isHovered ? "#fff" : "none"}
-                                                    strokeWidth={isMatch || isHovered ? 1.5 : 0}
-                                                    className="transition-all duration-300"
-                                                />
-
-                                                {/* Tool Label on Hover or Match or High Importance */}
-                                                {(isHovered || isMatch || (importance >= 8 && el.score > 0.2)) && (
-                                                    <text
-                                                        x={tool.pos.x}
-                                                        y={tool.pos.y - nodeRadius - 5}
-                                                        textAnchor="middle"
-                                                        fill="white"
-                                                        fontSize={isHovered ? "11" : "9"}
-                                                        fontWeight={isHovered ? "bold" : "normal"}
-                                                        className="pointer-events-none select-none bg-black/50 rounded px-1"
-                                                        style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
-                                                    >
-                                                        {tool.name}
-                                                    </text>
-                                                )}
-                                            </g>
-                                        );
-                                    })}
-                                </g>
+                            {(isHovered || tool.isMatch || tool.entropy > 0.5) && (
+                                <text x={tool.x} y={tool.y - size - 4} textAnchor="middle" fill="#fff" fontSize="10" className="pointer-events-none select-none shadow-black drop-shadow-md">
+                                    {tool.name}
+                                </text>
                             )}
                         </g>
                     );
                 })}
+
             </svg>
+
+            {/* Legend / Info Overlay */}
+            <div className="absolute bottom-4 left-4 text-xs text-gray-500 max-w-xs pointer-events-none">
+                <p><strong>Center:</strong> General Purpose (High Entropy)</p>
+                <p><strong>Periphery:</strong> Specialized (Low Entropy)</p>
+            </div>
         </div>
     );
 };

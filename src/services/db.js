@@ -197,6 +197,69 @@ window.ManifoldDB = {
         }
     },
 
+    // --- TENSOR DATA SYNC (New Model) ---
+    seedTensorData: async function () {
+        if (!this.db) return;
+        const data = window.ManifoldData;
+        if (!data || !data.domains) return;
+
+        console.log("Seeding Tensor Model...");
+        const batch = this.db.batch();
+
+        // 1. Save Metadata/Config
+        const metaRef = this.db.collection('tensor_model').doc('metadata');
+        batch.set(metaRef, {
+            version: '1.0',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Save Domains (Sectors)
+        const domainsRef = this.db.collection('tensor_model').doc('domains');
+        batch.set(domainsRef, { list: data.domains });
+
+        // 3. Save Tools (Entities)
+        const toolsRef = this.db.collection('tensor_model').doc('tools');
+        batch.set(toolsRef, { list: data.tools });
+
+        // 4. Save Tensor (Weights)
+        const tensorRef = this.db.collection('tensor_model').doc('weights');
+        batch.set(tensorRef, { list: data.tensor });
+
+        try {
+            await batch.commit();
+            console.log("Tensor Model synced to cloud!");
+            window.dispatchEvent(new CustomEvent('manifold-toast', {
+                detail: { message: "Modelo Tensor sincronizado con la nube.", type: 'success' }
+            }));
+        } catch (e) {
+            console.error("Error seeding tensor:", e);
+            window.dispatchEvent(new CustomEvent('manifold-toast', {
+                detail: { message: "Error al sincronizar modelo.", type: 'error' }
+            }));
+        }
+    },
+
+    getTensorData: async function () {
+        if (!this.db) return null; // Return null to fallback to local
+        try {
+            const docDomains = await this.db.collection('tensor_model').doc('domains').get();
+            const docTools = await this.db.collection('tensor_model').doc('tools').get();
+            const docTensor = await this.db.collection('tensor_model').doc('weights').get();
+
+            if (docDomains.exists && docTools.exists && docTensor.exists) {
+                return {
+                    domains: docDomains.data().list,
+                    tools: docTools.data().list,
+                    tensor: docTensor.data().list
+                };
+            }
+            return null;
+        } catch (e) {
+            console.warn("Could not fetch tensor data:", e);
+            return null;
+        }
+    },
+
     // Get ontology once (legacy/fallback)
     getOntology: async function () {
         const localClusters = window.ManifoldData ? window.ManifoldData.clusters : [];

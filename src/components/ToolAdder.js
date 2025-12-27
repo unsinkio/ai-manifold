@@ -3,6 +3,8 @@ const { useState } = React;
 window.ToolAdder = function ToolAdder({ sectorId, onClose, onAdd }) {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [year, setYear] = useState(2024);
+    const [secondarySectors, setSecondarySectors] = useState([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e) => {
@@ -14,7 +16,10 @@ window.ToolAdder = function ToolAdder({ sectorId, onClose, onAdd }) {
             await onAdd({
                 name,
                 description,
-                sectorId
+                year,
+                primaryDomain: sectorId, // Explicitly primary
+                secondaryDomains: secondarySectors,
+                sectorId // Legacy support if needed
             });
             onClose();
         } catch (err) {
@@ -32,27 +37,62 @@ window.ToolAdder = function ToolAdder({ sectorId, onClose, onAdd }) {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm text-gray-400 mb-1">Nombre de la IA</label>
-                        <input
-                            type="text"
-                            className="w-full bg-[#1a2440] border border-white/10 rounded p-3 text-white focus:border-[#9da2ff] outline-none"
-                            placeholder="Ej. Amazing AI"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            autoFocus
-                        />
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="col-span-2">
+                            <label className="block text-sm text-gray-400 mb-1">Nombre</label>
+                            <input
+                                type="text"
+                                className="w-full bg-[#1a2440] border border-white/10 rounded p-3 text-white focus:border-[#9da2ff] outline-none"
+                                placeholder="Ej. Amazing AI"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Año</label>
+                            <input
+                                type="number"
+                                min="2010"
+                                max="2030"
+                                className="w-full bg-[#1a2440] border border-white/10 rounded p-3 text-white focus:border-[#9da2ff] outline-none text-center"
+                                value={year}
+                                onChange={(e) => setYear(parseInt(e.target.value))}
+                            />
+                        </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm text-gray-400 mb-1">Breve Descripción</label>
+                        <label className="block text-sm text-gray-400 mb-1">Descripción</label>
                         <textarea
-                            rows="3"
+                            rows="2"
                             className="w-full bg-[#1a2440] border border-white/10 rounded p-3 text-white focus:border-[#9da2ff] outline-none"
                             placeholder="¿Qué hace esta herramienta?"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                         />
+                    </div>
+
+                    {/* Multi-Sector Selection */}
+                    <div>
+                        <label className="block text-sm text-gray-400 mb-2">Sectores Adicionales (Multidisciplinar)</label>
+                        <div className="grid grid-cols-2 gap-2 text-xs bg-[#1a2440] p-3 rounded border border-white/10 max-h-32 overflow-y-auto custom-scrollbar">
+                            {window.ManifoldData.domains.filter(d => d.id !== sectorId).map(domain => (
+                                <label key={domain.id} className="flex items-center gap-2 cursor-pointer hover:text-white text-gray-400">
+                                    <input
+                                        type="checkbox"
+                                        value={domain.id}
+                                        checked={secondarySectors.includes(domain.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) setSecondarySectors([...secondarySectors, domain.id]);
+                                            else setSecondarySectors(secondarySectors.filter(id => id !== domain.id));
+                                        }}
+                                        className="rounded border-white/20 bg-black/50"
+                                    />
+                                    <span className="truncate">{window.ManifoldI18n.translateData(domain.label)}</span>
+                                </label>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="pt-2">
