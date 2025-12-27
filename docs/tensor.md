@@ -229,42 +229,28 @@ The angle represents the **dominant domain orientation** of the tool.
 
 ---
 
-## 8) Time Projection (Ring Structure)
+## 8) Radial Coordinate — Generality vs. Specialization
 
-Aggregate the tensor over domains, intents, and evidence:
+In this model, the **radial axis is reserved exclusively** for representing the **structural generality** of a tool.
 
-```math
-u_t(y)
-=
-\sum_{d \in \mathcal{D}}
-\sum_{i \in \mathcal{I}}
-\sum_{e \in \mathcal{E}}
-X_{t,d,y,i,e}
-```
+### What the radius represents
 
-Normalize:
+The radius encodes **how transversal or specialized** a tool is across domains.
 
-```math
-\hat{u}_t(y)
-=
-\frac{u_t(y)}{\sum_{y' \in \mathcal{Y}} u_t(y')}
-```
+* **Center** → highly transversal tool
+* **Periphery** → highly specialized tool
 
-Define the expected maturity time:
+This property is **not temporal**.
+It is an **ontological characteristic** of the role the tool plays in the cognitive space.
 
-```math
-\mu_y(t)
-=
-\sum_{y \in \mathcal{Y}} \hat{u}_t(y)\, y
-```
-
-This value determines the **radial ring** (time bin).
+> The radius answers the question:
+> **“What kind of object is this tool in the manifold?”**
 
 ---
 
-## 9) Radial Coordinate (Generality vs. Specialization)
+### Definition (domain entropy)
 
-Compute the entropy of the domain distribution:
+Generality is measured using the **entropy of the domain distribution**:
 
 ```math
 H(t)
@@ -274,16 +260,19 @@ H(t)
 \hat{v}_t(d)\log \hat{v}_t(d)
 ```
 
-Normalize entropy:
+This entropy is normalized to obtain a value between 0 and 1:
 
 ```math
 H_n(t)
 =
 \frac{H(t)}{\log |\mathcal{D}|}
-\quad \in [0,1]
 ```
 
-Map entropy to radial distance:
+---
+
+### Mapping entropy to radius
+
+The radial coordinate is defined as the **inverse of the normalized entropy**:
 
 ```math
 r(t)
@@ -294,12 +283,112 @@ r_{\min}
 \left(r_{\max} - r_{\min}\right)
 ```
 
-**Interpretation**
+---
 
-* High entropy → small radius → **transversal / central tool**
-* Low entropy → large radius → **specialized / peripheral tool**
+### Pedagogical interpretation
+
+* High entropy → distributed usage → **general tool** → closer to the center
+* Low entropy → concentrated usage → **specialized tool** → farther from the center
+
+> The center does not indicate quality or value.
+> It indicates **cognitive responsibility**.
+
+Highly central tools:
+
+* cut across domains,
+* amplify judgment,
+* and are more dangerous when used without context.
 
 ---
+
+## 9) Temporal Trajectory — Time as a Geodesic
+
+### Core principle
+
+In this model, **time does not define a primary geometric axis**.
+
+Time does **not** push tools inward or outward.
+Instead, time describes **how a tool moves within the manifold**.
+
+Therefore:
+
+> **Time is represented as a trajectory (a geodesic), not as a radius or a ring.**
+
+---
+
+### What a geodesic means (in plain terms)
+
+A geodesic is:
+
+* the **natural path** an object follows within a space,
+* the path that minimizes distortion, not distance.
+
+In this context:
+
+> The temporal geodesic of a tool is the sequence of positions it occupies in the manifold as time evolves.
+
+---
+
+### Formal definition
+
+For each time instant ( y \in \mathcal{Y} ), a tool ( t ) has:
+
+* an angular orientation ( \theta(t,y) ),
+* a radial generality ( r(t,y) ).
+
+The temporal trajectory (geodesic) of tool ( t ) is defined as:
+
+```math
+\Gamma(t)
+=
+\left\{
+\big( r(t,y),\; \theta(t,y) \big)
+\;\middle|\;
+y \in \mathcal{Y}
+\right\}
+```
+
+---
+
+### Visual interpretation
+
+* A **point** represents the state of a tool at a given time
+* A **continuous line** represents its evolution
+* Angular drift → change in dominant domain
+* Radial drift → change in generality (typically slow and rare)
+
+Time does not collapse the space.
+It **traverses** it.
+
+---
+
+### Why this matters
+
+Representing time as a geodesic allows us to:
+
+* observe genuine shifts in usage,
+* distinguish structural evolution from temporal noise,
+* avoid linear “progress” narratives,
+* preserve the semantic meaning of the center.
+
+In short:
+
+> Space defines **what things are**.
+> Time explains **how they move through that space**.
+
+---
+
+### Final geometric convention (explicit)
+
+| Dimension  | Representation        |
+| ---------- | --------------------- |
+| Generality | Radius                |
+| Domain     | Angle                 |
+| Time       | Geodesic / trajectory |
+| Intensity  | Thickness / opacity   |
+| Risk       | Color / outline       |
+
+This convention resolves the earlier conflict and keeps the manifold **topologically coherent**.
 
 ## 10) Trajectories (Edges)
 
