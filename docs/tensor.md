@@ -271,6 +271,25 @@ Assign each domain a fixed angular coordinate:
 \theta_d \in [0, 2\pi)
 ```
 
+The angular position of tool ( t ) is defined as the **circular mean**:
+
+```math
+\theta(t)
+=
+\arctan
+\left(
+\frac{
+\sum_{d \in \mathcal{D}} \hat{v}_t(d)\sin \theta_d
+}{
+\sum_{d \in \mathcal{D}} \hat{v}_t(d)\cos \theta_d
+}
+\right)
+```
+
+### Meaning
+
+The angle represents the **dominant domain orientation** of the tool.
+
 The angular position of tool ( t ) is the circular mean:
 
 ```math
