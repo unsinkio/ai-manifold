@@ -159,6 +159,10 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, sear
                 trailPath = `M ${prevPos.x} ${prevPos.y} Q ${cp.x} ${cp.y} ${pos.x} ${pos.y}`;
             }
         }
+        // Size Calculation (Pre-computed for collision)
+        const evidenceVol = tool.evidence ? tool.evidence.volume : 0.5; // Default medium volume
+        const baseSize = 4 + (evidenceVol * 8); // 4px to 12px
+        const size = (hoveredToolId === tool.id) ? 14 : baseSize;
 
         return {
             ...tool,
@@ -166,12 +170,88 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, sear
             y: pos.y,
             r,
             angle,
+            originalAngle: angle, // Anchor for collision clamping
             color,
             isMatch,
             entropy: normalizedEntropy,
-            trailPath
+            trailPath,
+            size // Export size for collision/render
         };
     });
+
+    // --- COLLISION RESOLUTION (Micro-Perturbation) ---
+    // Zero-Jitter Deterministic Sort
+    computedTools.sort((a, b) => a.id.localeCompare(b.id));
+
+    // Prevent overlap by nudging angles (iterative relaxation)
+    const MIN_DIST = 16;
+    const MAX_SHIFT = 0.1; // Max angular shift (~5.7 degrees)
+    let alpha = 1.0; // Damping factor
+
+    for (let iter = 0; iter < 4; iter++) {
+        for (let i = 0; i < computedTools.length; i++) {
+            for (let j = i + 1; j < computedTools.length; j++) {
+                const a = computedTools[i];
+                const b = computedTools[j];
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+                const distSq = dx * dx + dy * dy;
+
+                // Dynamic Collision Distance
+                const minDist = a.size + b.size + 4; // Radius A + Radius B + Padding
+
+                if (distSq < minDist * minDist) {
+                    const dist = Math.sqrt(distSq) || 0.1; // Avoid div by zero
+                    const overlap = minDist - dist; // How much to push total
+
+                    // Direction: Nudge angles apart.
+                    // If angles are identical, pick deterministic direction based on ID hash
+                    let angleDiff = a.angle - b.angle;
+                    if (Math.abs(angleDiff) < 0.001) {
+                        // Pseudo-random but deterministic based on string char codes
+                        const seed = (a.id.charCodeAt(0) + b.id.charCodeAt(0)) % 2;
+                        angleDiff = (seed === 0 ? 1 : -1) * 0.01;
+                    }
+
+                    const direction = angleDiff > 0 ? 1 : -1;
+
+                    // Push A
+                    if (a.r > 10) { // Don't move center point (r~0) angularly
+                        const arcLen = (overlap * 0.5) * alpha;
+                        const dTheta = arcLen / a.r;
+                        let newAngle = a.angle + dTheta * direction;
+
+                        // CLAMP A
+                        const drift = newAngle - (a.originalAngle || a.angle); // Fallback if not set
+                        if (Math.abs(drift) > MAX_SHIFT) {
+                            newAngle = (a.originalAngle || a.angle) + (drift > 0 ? MAX_SHIFT : -MAX_SHIFT);
+                        }
+                        a.angle = newAngle;
+
+                        const newPos = pol2cart(a.r, a.angle, cx, cy);
+                        a.x = newPos.x; a.y = newPos.y;
+                    }
+                    // Push B
+                    if (b.r > 10) {
+                        const arcLen = (overlap * 0.5) * alpha;
+                        const dTheta = arcLen / b.r;
+                        let newAngle = b.angle - dTheta * direction;
+
+                        // CLAMP B
+                        const drift = newAngle - (b.originalAngle || b.angle);
+                        if (Math.abs(drift) > MAX_SHIFT) {
+                            newAngle = (b.originalAngle || b.angle) + (drift > 0 ? MAX_SHIFT : -MAX_SHIFT);
+                        }
+                        b.angle = newAngle;
+
+                        const newPos = pol2cart(b.r, b.angle, cx, cy);
+                        b.x = newPos.x; b.y = newPos.y;
+                    }
+                }
+            }
+        }
+        alpha *= 0.75; // Decay damping
+    }
 
     const hasSearchMatch = computedTools.some(t => t.isMatch);
 
@@ -238,23 +318,58 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, sear
                 {/* --- 3. Tools (Projected Entities) --- */}
                 {computedTools.map((tool, i) => {
                     const isHovered = hoveredToolId === tool.name;
-                    const isDimmed = (hoveredToolId && !isHovered) || (searchTerm && !tool.isMatch);
+                    const isSearchResult = tool.isMatch;
 
-                    // Size logic
-                    const size = isHovered ? 8 : (4 + (tool.entropy * 3)); // More general = slightly larger for visibility
+                    // Evidence mapping
+                    const evidenceVol = tool.evidence ? tool.evidence.volume : 0.5; // Default medium volume
+                    const evidenceConf = tool.evidence ? tool.evidence.confidence : 1.0; // Default high confidence
+
+                    // Dimming Logic: Dim if (hover exists AND not hovered) OR (search exists AND not match)
+                    // Also apply Evidence Confidence as base opacity
+                    const interactionDim = (hoveredToolId && !isHovered) || (searchTerm && !isSearchResult);
+                    const finalOpacity = interactionDim ? 0.2 : evidenceConf;
+
+                    // Size is now pre-computed
+                    const size = tool.size;
+
+                    // Shape Geometry Helper
+                    const renderShape = () => {
+                        const isAgent = tool.intent === 'agent';
+                        const isLowConfidence = evidenceConf < 0.8;
+
+                        const style = {
+                            fill: tool.color,
+                            stroke: isHovered || isSearchResult ? "#fff" : (isAgent ? "#fff" : "none"),
+                            strokeWidth: isHovered ? 2 : (isAgent ? 1.5 : 1), // Thicker border for Agents
+                            strokeOpacity: isAgent ? 0.3 : (isHovered ? 1 : 0), // Subtle halo for Agents
+                            strokeDasharray: isLowConfidence ? "2 1" : "none" // Dashed for low confidence
+                        };
+
+                        switch (tool.intent) {
+                            case 'agent': // Triangle
+                                // Points: Top, BottomRight, BottomLeft
+                                const t = size * 1.5;
+                                return <polygon points={`${tool.x},${tool.y - t} ${tool.x + t},${tool.y + t} ${tool.x - t},${tool.y + t}`} {...style} />;
+
+                            case 'platform': // Square
+                                return <rect x={tool.x - size} y={tool.y - size} width={size * 2} height={size * 2} rx={2} {...style} />;
+
+                            case 'assistant': // Circle
+                            default:
+                                return <circle cx={tool.x} cy={tool.y} r={size} {...style} />;
+                        }
+                    };
 
                     return (
                         <g key={tool.id}
-                            className={`transition-all duration-500 ${isDimmed ? 'opacity-20' : 'opacity-100'}`}
-                            style={{ transformOrigin: `${tool.x}px ${tool.y}px`, transform: isHovered ? 'scale(1.5)' : 'scale(1)' }}
+                            className="transition-all duration-500"
+                            style={{ opacity: finalOpacity, transformOrigin: `${tool.x}px ${tool.y}px` }}
                             onMouseEnter={() => onHoverTool(tool.name)}
                             onMouseLeave={() => onHoverTool(null)}
                         >
                             {/* --- TRAIL / WAKE (Geodesic History) --- */}
-                            {/* Only visible on Hover or Search Match */}
-                            {tool.trailPath && (isHovered || tool.isMatch) && (
+                            {tool.trailPath && (isHovered || isSearchResult) && (
                                 <g className="animate-fadeIn">
-                                    {/* Trail Line */}
                                     <path
                                         d={tool.trailPath}
                                         fill="none"
@@ -264,21 +379,21 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, sear
                                         strokeLinecap="round"
                                         opacity="0.9"
                                     />
-                                    {/* Origin Dot (Ghost) */}
                                     <circle cx={tool.trailPath.split(' ')[1]} cy={tool.trailPath.split(' ')[2]} r="3" fill={tool.color} opacity="0.6" />
                                 </g>
                             )}
 
                             {/* Halo for high entropy (General tools) -> "Glowing Core" effect */}
                             {tool.entropy > 0.3 && (
-                                <circle cx={tool.x} cy={tool.y} r={size + 4} fill={tool.color} fillOpacity="0.1" />
+                                <circle cx={tool.x} cy={tool.y} r={size + 6} fill={tool.color} fillOpacity="0.1" />
                             )}
 
-                            <circle cx={tool.x} cy={tool.y} r={size} fill={tool.color} stroke={isHovered || tool.isMatch ? "#fff" : "none"} strokeWidth={1} />
+                            {/* Render Intent Shape */}
+                            {renderShape()}
 
                             {/* Label */}
-                            {(isHovered || tool.isMatch || tool.entropy > 0.5) && (
-                                <text x={tool.x} y={tool.y - size - 4} textAnchor="middle" fill="#fff" fontSize="10" className="pointer-events-none select-none shadow-black drop-shadow-md">
+                            {(isHovered || isSearchResult || tool.entropy > 0.5) && (
+                                <text x={tool.x} y={tool.y - size - 6} textAnchor="middle" fill="#fff" fontSize="10" className="pointer-events-none select-none shadow-black drop-shadow-md font-bold">
                                     {tool.name}
                                 </text>
                             )}
@@ -289,9 +404,20 @@ window.RadialMap = function RadialMap({ onClusterSelect, selectedClusterId, sear
             </svg>
 
             {/* Legend / Info Overlay */}
-            <div className="absolute bottom-4 left-4 text-xs text-gray-500 max-w-xs pointer-events-none">
-                <p><strong>Center:</strong> General Purpose (High Entropy)</p>
-                <p><strong>Periphery:</strong> Specialized (Low Entropy)</p>
+            <div className="absolute bottom-4 left-4 p-3 bg-black/40 backdrop-blur-sm rounded-lg border border-white/5 text-xs text-gray-400 pointer-events-none">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="w-2 h-2 rounded-full bg-gray-400"></span> <span>Assistant</span>
+                </div>
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="w-2 h-2 bg-gray-400 rotate-45 transform"></span> <span>Agent (Autonomous)</span>
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 bg-gray-400 rounded-sm"></span> <span>Platform</span>
+                </div>
+                <div className="border-t border-white/10 pt-1 mt-1 opacity-75">
+                    <p>Size = Evidence Vol</p>
+                    <p>Opacity = Confidence</p>
+                </div>
             </div>
         </div>
     );

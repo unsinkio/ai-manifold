@@ -27,12 +27,21 @@ window.ManifoldData.tools = [
     { id: "gemini", name: "Google Gemini Workspace", year: 2023, description: { es: "IA en Docs, Sheets, Gmail y Meet.", en: "AI in Docs, Sheets, Gmail and Meet." } },
     { id: "asana", name: "Asana Intelligence", year: 2023, description: { es: "Estructura proyectos y detecta bloqueos.", en: "Structures projects and detects blockers." } },
     { id: "monday", name: "Monday AI", year: 2023, description: { es: "Automation y asistencia en tableros de trabajo.", en: "Automation and assistance in work boards." } },
-    { id: "perplexity", name: "Perplexity Enterprise", year: 2022, description: { es: "Investigación aplicada a informes.", en: "Applied research for reports." } },
+    {
+        id: "perplexity",
+        name: "Perplexity Enterprise",
+        year: 2022,
+        intent: "assistant",
+        evidence: { volume: 0.9, confidence: 0.95 },
+        description: { es: "Investigación aplicada a informes.", en: "Applied research for reports." }
+    },
     {
         id: "notion_prod",
         name: "Notion AI (Prod)",
         originalId: "notion",
         year: 2023,
+        intent: "platform", // Structural/Container
+        evidence: { volume: 0.8, confidence: 0.9 },
         description: { es: "Repositorio vivo de procesos y decisiones.", en: "Living repository of processes and decisions." },
         // GEODESIC HISTORY (The Trail)
         // Represents previous state: Pure Productivity, Lower Entropy (More Specialized)
@@ -43,13 +52,18 @@ window.ManifoldData.tools = [
 
     // Sales
     {
-        id: "gohighlevel", name: "GoHighLevel AI", year: 2023, description: { es: "Flujos de nurturing y respuestas instantáneas.", en: "Nurturing flows and instant replies." },
+        id: "gohighlevel",
+        name: "GoHighLevel AI",
+        year: 2023,
+        intent: "agent", // Autonomous action
+        evidence: { volume: 0.6, confidence: 0.78 },
+        description: { es: "Flujos de nurturing y respuestas instantáneas.", en: "Nurturing flows and instant replies." },
         history: [
             { domainId: "sales", weight: 0.5, year: 2021 } // Started weaker
         ]
     },
-    { id: "hubspot", name: "HubSpot AI Assist", year: 2023, description: { es: "Emails, secuencias y resumen de deals.", en: "Emails, sequences and deal summaries." } },
-    { id: "zoho", name: "Zoho Zia", year: 2023, description: { es: "Análisis y predicciones dentro del CRM.", en: "Analysis and predictions within CRM." } },
+    { id: "hubspot", name: "HubSpot AI Assist", year: 2023, intent: "platform", evidence: { volume: 0.9, confidence: 0.9 }, description: { es: "Emails, secuencias y resumen de deals.", en: "Emails, sequences and deal summaries." } },
+    { id: "zoho", name: "Zoho Zia", year: 2023, intent: "assistant", evidence: { volume: 0.7, confidence: 0.8 }, description: { es: "Análisis y predicciones dentro del CRM.", en: "Analysis and predictions within CRM." } },
     { id: "rechat", name: "ReChat / LocalizeOS", year: 2022, description: { es: "IA para agentes inmobiliarios (listings, comps).", en: "AI for agents (listings, comps)." } },
     { id: "fathom", name: "Fathom AI", year: 2021, description: { es: "Convierte llamadas en tareas concretas.", en: "Converts calls into concrete tasks." } },
 
@@ -75,11 +89,11 @@ window.ManifoldData.tools = [
     { id: "scite", name: "Scite AI", year: 2021, description: { es: "Contexto de citas: apoyo o contradicción.", en: "Citation context: supporting or contrasting." } },
 
     // Engineering
-    { id: "github_copilot", name: "GitHub Copilot Enterprise", year: 2023, description: { es: "Asistencia en el IDE y PRs.", en: "IDE and PR assistance." } },
+    { id: "github_copilot", name: "GitHub Copilot Enterprise", year: 2023, intent: "assistant", evidence: { volume: 1.0, confidence: 0.99 }, description: { es: "Asistencia en el IDE y PRs.", en: "IDE and PR assistance." } },
     { id: "jetbrains", name: "JetBrains AI Assistant", year: 2023, description: { es: "Ayuda en entornos JetBrains.", en: "Help within JetBrains environments." } },
     { id: "awsq", name: "AWS Q", year: 2023, description: { es: "Consultoría de infra y scripts en AWS.", en: "Infra consultancy and AWS scripts." } },
     { id: "gcp_gemini", name: "GCP Gemini for Cloud", year: 2023, description: { es: "Asistencia en GCP.", en: "Assistance in GCP." } },
-    { id: "datadog", name: "Datadog Bits AI", year: 2023, description: { es: "Análisis de logs y anomalías.", en: "Log and anomaly analysis." } },
+    { id: "datadog", name: "Datadog Bits AI", year: 2023, intent: "agent", evidence: { volume: 0.5, confidence: 0.7 }, description: { es: "Análisis de logs y anomalías.", en: "Log and anomaly analysis." } },
     { id: "figma_dev", name: "Figma DevMode + IA", year: 2023, description: { es: "De diseño a especificación técnica.", en: "From design to specs." } },
 
     // Creative
