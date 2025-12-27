@@ -23,7 +23,7 @@ Individual AI systems or products.
 ```
 
 **Domains (sectors)**
-Fields of human activity (e.g., Education, Productivity, Sales, Finance, etc.).
+Fields of human activity (e.g., Education, Productivity, Sales, Finance).
 
 ---
 
@@ -42,7 +42,8 @@ Discrete periods representing emergence or consolidation
 ```
 
 **Work / Intent types**
-Cognitive or operational actions (e.g., summarize, draft, analyze, automate, tutor, code, audit).
+Cognitive or operational actions
+(e.g., summarize, draft, analyze, automate, tutor, code, audit).
 
 ---
 
@@ -51,7 +52,8 @@ Cognitive or operational actions (e.g., summarize, draft, analyze, automate, tut
 ```
 
 **Evidence channels**
-Sources supporting observed usage (e.g., logs, interviews, expert ratings, reports).
+Sources supporting observed usage
+(e.g., logs, interviews, expert ratings, reports).
 
 ---
 
@@ -75,65 +77,21 @@ X_{t,d,y,i,e} \ge 0
 X_{t,d,y,i,e}
 ```
 
-denotes the **evidence-weighted strength** that:
-
-Good catch — you’ve hit **two real Markdown/MathJax pain points**:
-
-1. **Mixed prose + inline math breaks rendering**
-2. The **conceptual justification (“why a tensor”) must live *outside* math blocks**
-
-Below is a **corrected, normalized version** that:
-
-* Renders **cleanly in GitHub-compatible MathJax**
-* Avoids inline-math fragmentation
-* Restores a **formal “Why a tensor (not a table)” section**
-* Keeps the document stylistically consistent
-
-You can paste this **directly over the problematic section**.
-
----
-
-## 2) Core Tensor Definition
-
-```math
-\mathbf{X} \in \mathbb{R}^{n \times m \times k \times p \times q}
-```
-
-```math
-X_{t,d,y,i,e} \ge 0
-```
-
-### Interpretation
-
-```math
-X_{t,d,y,i,e}
-```
-
 denotes the **evidence-weighted strength** of the following statement:
-- tool 
+
 ```math
-t \in \mathcal{T} \quad \text{(tool)}
-```
-- is used in domain 
-```math
-d \in \mathcal{D} \quad \text{(domain)}
-```
-- at time 
-```math
-y \in \mathcal{Y} \quad \text{(time)}
-```
-- for intent 
-```math
-i \in \mathcal{I} \quad \text{(intent)}
-```
-- supported by evidence channel 
-```math
-e \in \mathcal{E} \quad \text{(evidence channel)}
+t \in \mathcal{T}, \quad
+d \in \mathcal{D}, \quad
+y \in \mathcal{Y}, \quad
+i \in \mathcal{I}, \quad
+e \in \mathcal{E}
 ```
 
-> **Rendering rule**
-> Explanatory text is kept outside math blocks.
-> Math blocks define symbols; prose binds them to meaning.
+That is:
+tool ( t ) is used in domain ( d ), at time ( y ), for intent ( i ), supported by evidence channel ( e ).
+
+This tensor is the **only source of truth**.
+All geometry is derived from it.
 
 ---
 
@@ -156,9 +114,7 @@ This structure assumes:
 * a single time context
 * a single evidence source
 
-To represent reality, you must duplicate rows, average values, or collapse distinctions.
-
-This causes **category collapse**.
+To represent reality, rows must be duplicated or aggregated, causing **category collapse**.
 
 ---
 
@@ -166,13 +122,13 @@ This causes **category collapse**.
 
 A tensor preserves **orthogonality**:
 
-| Dimension | Meaning                         |
-| --------- | ------------------------------- |
-| ( t )     | *What system exists*            |
-| ( d )     | *Where it operates*             |
-| ( y )     | *When it matters*               |
-| ( i )     | *What kind of work it performs* |
-| ( e )     | *Why we believe this is true*   |
+| Dimension | Meaning                       |
+| --------- | ----------------------------- |
+| ( t )     | What system exists            |
+| ( d )     | Where it operates             |
+| ( y )     | When it matters               |
+| ( i )     | What kind of work it performs |
+| ( e )     | Why we believe this is true   |
 
 No dimension dominates another.
 No aggregation is forced prematurely.
@@ -202,20 +158,6 @@ not
 
 ---
 
-### Conceptual advantage
-
-A table answers:
-
-> *What is this tool?*
-
-A tensor allows you to ask:
-
-> *How does this tool behave across contexts, time, and intent?*
-
-That distinction is **the point of the map**.
-
----
-
 ## 4) Design Constraint (Non-Negotiable)
 
 > **Domain, time, intent, and evidence must remain orthogonal.**
@@ -230,17 +172,13 @@ The tensor prevents this by construction.
 
 ---
 
-## 5) One-line summary 
+## 5) One-Line Summary
 
 > We use a tensor instead of a table to preserve orthogonality between domain, time, intent, and evidence; the radial map is a geometric projection of tensor marginals, not a categorical listing.
 
-
-This tensor is the **only source of truth**.
-All geometry is derived from it.
-
 ---
 
-## 3) Domain Projection (Angular Structure)
+## 6) Domain Projection (Angular Structure)
 
 Aggregate the tensor over time, intent, and evidence:
 
@@ -263,7 +201,7 @@ Normalize to obtain a domain distribution:
 
 ---
 
-## 4) Angular Coordinate (Sector Position)
+## 7) Angular Coordinate (Sector Position)
 
 Assign each domain a fixed angular coordinate:
 
@@ -286,28 +224,12 @@ The angular position of tool ( t ) is defined as the **circular mean**:
 \right)
 ```
 
-### Meaning
-
-The angle represents the **dominant domain orientation** of the tool.
-
-The angular position of tool ( t ) is the circular mean:
-
-```math
-\theta(t)
-=
-\operatorname{atan2}
-\left(
-\sum_{d \in \mathcal{D}} \hat{v}_t(d)\sin\theta_d,\;
-\sum_{d \in \mathcal{D}} \hat{v}_t(d)\cos\theta_d
-\right)
-```
-
 **Meaning**
 The angle represents the **dominant domain orientation** of the tool.
 
 ---
 
-## 5) Time Projection (Ring Structure)
+## 8) Time Projection (Ring Structure)
 
 Aggregate the tensor over domains, intents, and evidence:
 
@@ -336,11 +258,11 @@ Define the expected maturity time:
 \sum_{y \in \mathcal{Y}} \hat{u}_t(y)\, y
 ```
 
-This value determines the **radial ring** (time bin) in the visualization.
+This value determines the **radial ring** (time bin).
 
 ---
 
-## 6) Radial Coordinate (Generality vs. Specialization)
+## 9) Radial Coordinate (Generality vs. Specialization)
 
 Compute the entropy of the domain distribution:
 
@@ -372,14 +294,14 @@ r_{\min}
 \left(r_{\max} - r_{\min}\right)
 ```
 
-### Interpretation
+**Interpretation**
 
 * High entropy → small radius → **transversal / central tool**
 * Low entropy → large radius → **specialized / peripheral tool**
 
 ---
 
-## 7) Trajectories (Edges)
+## 10) Trajectories (Edges)
 
 Define projection strength from tool ( t ) into domain ( d ):
 
@@ -404,7 +326,7 @@ or if ( d ) is among the top-(K) values of ( \hat{v}_t(d) ).
 
 ---
 
-## 8) Optional Extension: Risk-Weighted Tensor
+## 11) Optional Extension: Risk-Weighted Tensor
 
 Let:
 
@@ -427,7 +349,7 @@ Using ( \mathbf{X}' ) emphasizes domains where usage is cognitively or instituti
 
 ---
 
-## 9) Visualization Principle
+## 12) Visualization Principle
 
 The radial map is a projection of tensor marginals:
 
@@ -440,7 +362,7 @@ The radial map is a projection of tensor marginals:
 
 ---
 
-## 10) Core Statement
+## 13) Core Statement
 
 ```math
 \text{The model is the tensor } \mathbf{X}.
@@ -449,4 +371,3 @@ The radial map is a projection of tensor marginals:
 
 The visualization does not rank tools.
 It preserves **orthogonality between domain, time, intent, and evidence**, enabling navigation without epistemic collapse.
-
