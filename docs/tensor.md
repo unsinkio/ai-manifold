@@ -77,11 +77,163 @@ X_{t,d,y,i,e}
 
 denotes the **evidence-weighted strength** that:
 
-* tool ( t \in \mathcal{T} )
-* is used in domain ( d \in \mathcal{D} )
-* at time ( y \in \mathcal{Y} )
-* for intent ( i \in \mathcal{I} )
-* supported by evidence channel ( e \in \mathcal{E} )
+Good catch — you’ve hit **two real Markdown/MathJax pain points**:
+
+1. **Mixed prose + inline math breaks rendering**
+2. The **conceptual justification (“why a tensor”) must live *outside* math blocks**
+
+Below is a **corrected, normalized version** that:
+
+* Renders **cleanly in GitHub-compatible MathJax**
+* Avoids inline-math fragmentation
+* Restores a **formal “Why a tensor (not a table)” section**
+* Keeps the document stylistically consistent
+
+You can paste this **directly over the problematic section**.
+
+---
+
+## 2) Core Tensor Definition
+
+```math
+\mathbf{X} \in \mathbb{R}^{n \times m \times k \times p \times q}
+```
+
+```math
+X_{t,d,y,i,e} \ge 0
+```
+
+### Interpretation
+
+```math
+X_{t,d,y,i,e}
+```
+
+denotes the **evidence-weighted strength** of the following statement:
+- tool 
+```math
+t \in \mathcal{T} \quad \text{(tool)}
+```
+- is used in domain 
+```math
+d \in \mathcal{D} \quad \text{(domain)}
+```
+- at time 
+```math
+y \in \mathcal{Y} \quad \text{(time)}
+```
+- for intent 
+```math
+i \in \mathcal{I} \quad \text{(intent)}
+```
+- supported by evidence channel 
+```math
+e \in \mathcal{E} \quad \text{(evidence channel)}
+```
+
+> **Rendering rule**
+> Explanatory text is kept outside math blocks.
+> Math blocks define symbols; prose binds them to meaning.
+
+---
+
+## 3) Why a Tensor (and Not a Table)
+
+A flat table forces **implicit coupling** between independent dimensions.
+
+### The table problem
+
+A typical table requires columns like:
+
+```
+Tool | Domain | Year | Intent | Evidence | Score
+```
+
+This structure assumes:
+
+* a single dominant domain per row
+* a single intent per observation
+* a single time context
+* a single evidence source
+
+To represent reality, you must duplicate rows, average values, or collapse distinctions.
+
+This causes **category collapse**.
+
+---
+
+### The tensor solution
+
+A tensor preserves **orthogonality**:
+
+| Dimension | Meaning                         |
+| --------- | ------------------------------- |
+| ( t )     | *What system exists*            |
+| ( d )     | *Where it operates*             |
+| ( y )     | *When it matters*               |
+| ( i )     | *What kind of work it performs* |
+| ( e )     | *Why we believe this is true*   |
+
+No dimension dominates another.
+No aggregation is forced prematurely.
+
+---
+
+### Formal advantage
+
+With a tensor:
+
+* Domains can be summed **without erasing time**
+* Time can be analyzed **without collapsing intent**
+* Evidence can be weighted **without redefining usage**
+* Geometry emerges from **marginals**, not assumptions
+
+Formally:
+
+```math
+\text{Visualization} = \text{projection of tensor marginals}
+```
+
+not
+
+```math
+\text{Visualization} = \text{direct encoding of rows}
+```
+
+---
+
+### Conceptual advantage
+
+A table answers:
+
+> *What is this tool?*
+
+A tensor allows you to ask:
+
+> *How does this tool behave across contexts, time, and intent?*
+
+That distinction is **the point of the map**.
+
+---
+
+## 4) Design Constraint (Non-Negotiable)
+
+> **Domain, time, intent, and evidence must remain orthogonal.**
+
+Any representation that violates this:
+
+* collapses navigation into classification
+* turns exploration into ranking
+* destroys transferability across domains
+
+The tensor prevents this by construction.
+
+---
+
+## 5) One-line summary 
+
+> We use a tensor instead of a table to preserve orthogonality between domain, time, intent, and evidence; the radial map is a geometric projection of tensor marginals, not a categorical listing.
+
 
 This tensor is the **only source of truth**.
 All geometry is derived from it.
